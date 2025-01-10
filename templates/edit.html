@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Image</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <style>
+        .canvas-container {
+            margin: auto;
+            max-width: 100%;
+        }
+        #canvas {
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-4xl mx-auto bg-white rounded-lg shadow p-6">
+            <h1 class="text-2xl font-bold mb-6">Edit Image</h1>
+            
+            <!-- Canvas container -->
+            <div class="mb-6">
+                <div class="canvas-container mb-4">
+                    <canvas id="canvas"></canvas>
+                </div>
+                
+                <!-- Drawing tools -->
+                <div class="flex justify-center gap-4 mt-4">
+                    <button id="drawButton" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                        Draw Selection
+                    </button>
+                    <button id="clearButton" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
+                        Clear Selection
+                    </button>
+                    <div class="flex items-center gap-2">
+                        <label for="brushSize" class="text-sm">Brush Size:</label>
+                        <input type="range" id="brushSize" min="5" max="50" value="20" class="w-24">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Edit controls -->
+            <div class="space-y-4">
+                <div>
+                    <label for="prompt" class="block text-sm font-medium mb-2">Edit Prompt</label>
+                    <textarea id="prompt"
+                              placeholder="Describe changes to the selected area..."
+                              class="w-full p-2 border rounded h-24" required></textarea>
+                </div>
+
+                <div id="error" class="p-3 bg-red-100 text-red-700 rounded hidden"></div>
+
+                <div class="flex items-center gap-4">
+                    <button id="applyEditButton" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                        Apply Changes
+                    </button>
+                    <a href="/" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 text-center">
+                        Back to Generator
+                    </a>
+                </div>
+            </div>
+
+            <div id="result" class="mt-8 hidden">
+                <h2 class="text-lg font-medium mb-4">Edited Image</h2>
+                <img id="editedImage" class="w-full rounded-lg shadow" alt="Edited image">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const originalImageUrl = "{{ image_url }}";
+    </script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

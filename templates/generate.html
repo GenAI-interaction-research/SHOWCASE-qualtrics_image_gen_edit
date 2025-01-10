@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Generator</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <style>
+        .loading {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-2xl mx-auto bg-white rounded-lg shadow p-6">
+            <h1 class="text-2xl font-bold mb-6">Image Generator</h1>
+            
+            <form id="generateForm" class="space-y-6">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Style</label>
+                        <select id="style" class="w-full p-2 border rounded">
+                            <option value="realistic_image">Realistic Image</option>
+                            <option value="digital_illustration">Digital Illustration</option>
+                            <option value="vector_illustration">Vector Illustration</option>
+                            <option value="icon">Icon</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Size</label>
+                        <select id="size" class="w-full p-2 border rounded">
+                            <option value="1024x1024">1024x1024</option>
+                            <option value="1280x1024">1280x1024</option>
+                            <option value="1024x1280">1024x1280</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium mb-2">Prompt</label>
+                    <textarea
+                        id="prompt"
+                        placeholder="Describe the image you want to generate..."
+                        class="w-full p-2 border rounded h-24"
+                        required
+                    ></textarea>
+                </div>
+
+                <div id="error" class="p-3 bg-red-100 text-red-700 rounded hidden"></div>
+
+                <button
+                    type="submit"
+                    class="w-full bg-blue-600 text-white p-3 rounded hover:bg-blue-700 flex items-center justify-center"
+                >
+                    <span id="buttonText">Generate Image</span>
+                </button>
+            </form>
+
+            <div id="result" class="mt-8 hidden">
+                <h2 class="text-lg font-medium mb-4">Generated Image</h2>
+                <img id="generatedImage" class="w-full rounded-lg shadow mb-4" alt="Generated image">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('generateForm');
+        const error = document.getElementById('error');
+        const result = document.getElementById('result');
+        const generatedImage = document.getElementById('generatedImage');
+        const buttonText = document.getElementById('buttonText');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Hide any previous error
+            error.classList.add('hidden');
+            
+            // Get form values
+            const prompt = document.getElementById('prompt').value.trim();
+            const style = document.getElementById('style').value;
+            const size = document.getElementById('size').value;
+
+            if (!prompt) {
+                error.textContent = 'Please enter a prompt';
+                error.classList.remove('hidden');
+                return;
+            }
+
+            // Show loading state
+            form.classList.add('loading');
+            buttonText.textContent = 'Generating...';
+
+            try {
+                const response = await fetch('/generate-image', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt, style, size })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    generatedImage.src = data.image_url;
+                    result.classList.remove('hidden');
+
+                    // Add edit link if it doesn't exist
+                    const existingLink = result.querySelector('.edit-link');
+                    if (!existingLink) {
+                        const editLink = document.createElement('a');
+                        editLink.href = `/edit?url=${encodeURIComponent(data.image_url)}`;
+                        editLink.className = 'edit-link block bg-blue-600 text-white p-3 rounded hover:bg-blue-700 text-center';
+                        editLink.textContent = 'Edit this image';
+                        result.appendChild(editLink);
+                    }
+
+                    window.scrollTo({ top: result.offsetTop, behavior: 'smooth' });
+                } else {
+                    error.textContent = data.error || 'Failed to generate image';
+                    error.classList.remove('hidden');
+                }
+            } catch (err) {
+                error.textContent = 'Error generating image: ' + err.message;
+                error.classList.remove('hidden');
+            } finally {
+                // Reset loading state
+                form.classList.remove('loading');
+                buttonText.textContent = 'Generate Image';
+            }
+        });
+    </script>
+</body>
+</html>
