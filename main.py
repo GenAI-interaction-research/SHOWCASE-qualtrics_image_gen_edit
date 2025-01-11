@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 import logging
 from openai import OpenAI
 import traceback
+from edit_app import create_edit_app
 
 # Set up logging at module level
 logging.basicConfig(level=logging.INFO)
@@ -47,6 +48,12 @@ def create_app():
             base_url='https://external.api.recraft.ai/v1'
         )
         logger.info("Recraft client initialized successfully")
+        
+        # Register the edit Blueprint with the initialized client
+        edit_blueprint = create_edit_app(recraft_client)
+        app.register_blueprint(edit_blueprint)
+        logger.info("Edit Blueprint registered successfully")
+        
     except Exception as e:
         logger.error(f"Failed to initialize Recraft client: {str(e)}")
         logger.error(traceback.format_exc())
