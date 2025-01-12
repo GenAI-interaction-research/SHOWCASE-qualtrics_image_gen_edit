@@ -102,8 +102,13 @@
                 });
 
                 const data = await response.json();
+                console.log('API Response:', data);
 
-                if (data.success) {
+                if (!response.ok) {
+                    throw new Error(data.error || response.statusText || 'Failed to generate image');
+                }
+
+                if (data.success && data.image_url) {
                     generatedImage.src = data.image_url;
                     result.classList.remove('hidden');
 
@@ -119,11 +124,11 @@
 
                     window.scrollTo({ top: result.offsetTop, behavior: 'smooth' });
                 } else {
-                    error.textContent = data.error || 'Failed to generate image';
-                    error.classList.remove('hidden');
+                    throw new Error(data.error || 'Failed to generate image');
                 }
             } catch (err) {
-                error.textContent = 'Error generating image: ' + err.message;
+                console.error('Generation error:', err);
+                error.textContent = err.message || 'An unexpected error occurred';
                 error.classList.remove('hidden');
             } finally {
                 // Reset loading state

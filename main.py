@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 from PIL import Image
 from io import BytesIO
 import requests
+import requests.exceptions
+import time
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -23,21 +25,41 @@ def ensure_grayscale_png(file_stream):
 def create_app():
     # Load environment variables
     load_dotenv()
-    app = Flask(__name__)
-    
-    # Configure CORS
-    CORS(app)
+    app = Flask(__name__, static_url_path='', static_folder='static')
+
+    # Configure CORS with more permissive settings
+    CORS(app, resources={
+        r"/*": {
+            "origins": "*",
+            "methods": ["GET", "POST", "OPTIONS"],
+            "allow_headers": ["Content-Type"]
+        }
+    })
 
     # Setup Recraft client
     RECRAFT_API_TOKEN = os.getenv('RECRAFT_API_TOKEN')
     if not RECRAFT_API_TOKEN:
         logger.error("No Recraft API token found")
         raise ValueError("RECRAFT_API_TOKEN environment variable is required")
-
+    
+    # Log token details (safely)
+    logger.info(f"API Token details:")
+    logger.info(f"- Length: {len(RECRAFT_API_TOKEN)}")
+    logger.info(f"- First 4 chars: {RECRAFT_API_TOKEN[:4]}***")
+    logger.info(f"- Environment variables: {list(os.environ.keys())}")
+    
     recraft_client = OpenAI(
         api_key=RECRAFT_API_TOKEN,
-        base_url='https://external.api.recraft.ai/v1'
+        base_url='https://external.api.recraft.ai/v1',
+        max_retries=3,
+        timeout=30.0
     )
+    logger.info("Recraft client initialized successfully")
+
+    # Root route
+    @app.route('/')
+    def index():
+        return render_template('generate.html')
 
     # Generation routes
     @app.route('/generate')
@@ -47,34 +69,49 @@ def create_app():
     @app.route('/generate-image', methods=['POST'])
     def generate_image():
         try:
+            logger.info("Received generate-image request")
             data = request.get_json()
+            logger.info(f"Request data: {data}")
+            
             if not data or 'prompt' not in data:
-                return jsonify({'success': False, 'error': 'No prompt provided'})
-
+                logger.error("No prompt provided in request")
+                return jsonify({'success': False, 'error': 'No prompt provided'}), 400
+            
             prompt = data['prompt']
             style = data.get('style', 'realistic_image')
             size = data.get('size', '1024x1024')
 
             logger.info(f"Generating image with prompt: {prompt}, style: {style}")
             
-            response = recraft_client.images.generate(
-                prompt=prompt,
-                style=style
-            )
-            
-            if not response.data:
-                raise ValueError("No image data in response")
+            try:
+                response = recraft_client.images.generate(
+                    prompt=prompt,
+                    style=style
+                )
                 
-            image_url = response.data[0].url
-            logger.info(f"Image generated successfully: {image_url}")
-            
-            return jsonify({
-                'success': True,
-                'image_url': image_url
-            })
+                if not response.data:
+                    logger.error("No image data in response")
+                    return jsonify({'success': False, 'error': 'No image data in API response'}), 500
+                    
+                image_url = response.data[0].url
+                logger.info(f"Image generated successfully: {image_url}")
+                
+                return jsonify({
+                    'success': True,
+                    'image_url': image_url
+                })
+            except requests.exceptions.ConnectionError as e:
+                logger.error(f"Connection error to Recraft API: {str(e)}")
+                return jsonify({'success': False, 'error': f'Connection error: {str(e)}'}), 503
+            except requests.exceptions.Timeout as e:
+                logger.error(f"Timeout error with Recraft API: {str(e)}")
+                return jsonify({'success': False, 'error': f'Request timed out: {str(e)}'}), 504
+            except Exception as e:
+                logger.error(f"Unexpected error with Recraft API: {str(e)}")
+                return jsonify({'success': False, 'error': f'Unexpected error: {str(e)}'}), 500
         except Exception as e:
-            logger.error(f"Error generating image: {str(e)}")
-            return jsonify({'success': False, 'error': str(e)})
+            logger.error(f"Server Error: {str(e)}")
+            return jsonify({'success': False, 'error': f'Server error: {str(e)}'}), 500
 
     # Editing routes
     @app.route('/edit')
@@ -162,6 +199,38 @@ def create_app():
         except Exception as e:
             logger.error(f"Error in direct modification: {str(e)}")
             return jsonify({'success': False, 'error': str(e)})
+
+    @app.route('/health')
+    def health_check():
+        try:
+            # Test connection to Recraft API
+            response = requests.get('https://external.api.recraft.ai/v1/health',
+                                 headers={'Authorization': f'Bearer {RECRAFT_API_TOKEN}'},
+                                 timeout=10)
+            logger.info(f"Health check response status: {response.status_code}")
+            return jsonify({
+                'status': 'healthy',
+                'recraft_api': 'connected' if response.status_code == 200 else 'error',
+                'recraft_status_code': response.status_code
+            })
+        except requests.exceptions.ConnectionError as e:
+            logger.error(f"Health check connection error: {str(e)}")
+            return jsonify({
+                'status': 'unhealthy',
+                'error': f'Connection error: {str(e)}'
+            }), 503
+        except requests.exceptions.Timeout as e:
+            logger.error(f"Health check timeout: {str(e)}")
+            return jsonify({
+                'status': 'unhealthy',
+                'error': f'Timeout: {str(e)}'
+            }), 504
+        except Exception as e:
+            logger.error(f"Health check failed: {str(e)}")
+            return jsonify({
+                'status': 'unhealthy',
+                'error': str(e)
+            }), 500
 
     return app
 
