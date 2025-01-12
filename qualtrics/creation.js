@@ -21,41 +21,52 @@ Qualtrics.SurveyEngine.addOnload(function() {
             var styleParams = styleConfig.split(',');
             var requestBody = {
                 prompt: prompt,
-                style: styleParams[0],
-                size: '1024x1024'
+                model: 'recraftv3',
+                style: styleParams[0] || 'realistic_image',
+                n: 1,
+                response_format: 'url'
             };
             
-            if (styleParams.length > 1) {
-                requestBody.substyle = styleParams[1];
-            }
+            console.log('Sending request with body:', requestBody);
             
-            fetch('https://qualtrics-recraft-api-129769591311.europe-west1.run.app/generate-image', {
+            fetch('https://external.api.recraft.ai/v1/images/generations', {
                 method: 'POST',
                 signal: controller.signal,
                 headers: {
                     'Content-Type': 'application/json',
-                    'Origin': 'https://emlyonbs.eu.qualtrics.com',
+                    'Authorization': 'Bearer 6gu41BkgNuKrkox2lLjKIHV3sWWeoiAum6BK6jQKxMIJSTKvvDjUOPsK2xSKbu5k',
                     'Accept': 'application/json'
                 },
                 body: JSON.stringify(requestBody)
             })
             .then(function(response) {
                 clearTimeout(timeoutId);
-                if (!response.ok) throw new Error('Network response failed');
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        console.log('Error response body:', text);
+                        throw new Error('Network response failed: ' + text);
+                    });
+                }
                 return response.json();
             })
             .then(function(data) {
-                if (data.success && data.image_url) {
+                console.log('Response data:', data);
+                if (data && data.data && data.data[0] && data.data[0].url) {
+                    console.log('Generated Image URL:', data.data[0].url);
                     Qualtrics.SurveyEngine.setEmbeddedData('InitialPrompt', prompt);
-                    Qualtrics.SurveyEngine.setEmbeddedData('InitialImageURL', data.image_url);
-                    Qualtrics.SurveyEngine.setEmbeddedData('Iter1ImageURL', data.image_url);
+                    Qualtrics.SurveyEngine.setEmbeddedData('InitialImageURL', data.data[0].url);
+                    Qualtrics.SurveyEngine.setEmbeddedData('Iter1ImageURL', data.data[0].url);
                     that.enableNextButton();
                     that.clickNextButton();
                 } else {
-                    throw new Error(data.error || 'Invalid response');
+                    console.log('Invalid response structure:', data);
+                    throw new Error('Invalid response structure from API');
                 }
             })
             .catch(function(error) {
+                console.error('Error details:', error);
                 attempt++;
                 if (attempt < maxRetries) {
                     console.log('Retrying... Attempt ' + attempt);

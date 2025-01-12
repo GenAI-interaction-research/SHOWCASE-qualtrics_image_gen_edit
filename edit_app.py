@@ -86,18 +86,14 @@ def create_edit_app(recraft_client):
             try:
                 response = recraft_client.post(
                     path='/images/inpaint',
-                    cast_to=dict,
+                    cast_to=object,
                     options={'headers': {'Content-Type': 'multipart/form-data'}},
                     files={
                         'image': ('image.png', image_output, 'image/png'),
                         'mask': ('mask.png', mask_grayscale, 'image/png')
                     },
                     body={
-                        'prompt': prompt,
-                        'model': 'recraftv3',
-                        'style': 'realistic_image',
-                        'n': 1,
-                        'response_format': 'url'
+                        'prompt': prompt
                     }
                 )
                 
@@ -142,6 +138,76 @@ def create_edit_app(recraft_client):
 
         except Exception as e:
             logger.error(f"Server error: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)})
+
+    @edit_app.route('/test-inpaint', methods=['POST'])
+    def test_inpaint():
+        try:
+            # Debug logging for the entire request
+            logger.info("=== Debug Request Information ===")
+            logger.info(f"Content-Type: {request.content_type}")
+            logger.info(f"Files keys: {list(request.files.keys())}")
+            logger.info(f"Form keys: {list(request.form.keys())}")
+            logger.info(f"Headers: {dict(request.headers)}")
+            
+            # Get the files and data from form data
+            mask_file = request.files.get('mask')
+            image_file = request.files.get('image')
+            prompt = request.form.get('prompt')
+            
+            # More detailed logging
+            logger.info("=== File Details ===")
+            if mask_file:
+                logger.info(f"Mask file: {mask_file.filename}, content_type: {mask_file.content_type}")
+            else:
+                logger.info("No mask file received")
+                
+            if image_file:
+                logger.info(f"Image file: {image_file.filename}, content_type: {image_file.content_type}")
+            else:
+                logger.info("No image file received")
+                
+            logger.info(f"Prompt: {prompt}")
+            
+            if not mask_file or not image_file or not prompt:
+                missing = []
+                if not image_file: missing.append('image')
+                if not mask_file: missing.append('mask')
+                if not prompt: missing.append('prompt')
+                error_msg = f"Missing required fields: {', '.join(missing)}"
+                logger.error(error_msg)
+                return jsonify({'success': False, 'error': error_msg})
+            
+            # Convert mask to proper grayscale PNG
+            mask_grayscale = ensure_grayscale_png(mask_file)
+            
+            # Convert image to PNG
+            with Image.open(image_file) as img:
+                image_output = BytesIO()
+                img.save(image_output, format='PNG')
+                image_output.seek(0)
+
+            # Make the API request
+            try:
+                response = recraft_client.post(
+                    path='/images/inpaint',
+                    cast_to=object,
+                    options={'headers': {'Content-Type': 'multipart/form-data'}},
+                    files={
+                        'image': ('image.png', image_output, 'image/png'),
+                        'mask': ('mask.png', mask_grayscale, 'image/png')
+                    },
+                    body={
+                        'prompt': prompt
+                    }
+                )
+                return jsonify(response)
+            except Exception as e:
+                logger.error(f"API request failed: {str(e)}")
+                return jsonify({'success': False, 'error': f'API request failed: {str(e)}'})
+
+        except Exception as e:
+            logger.error(f"Error processing request: {str(e)}")
             return jsonify({'success': False, 'error': str(e)})
 
     return edit_app

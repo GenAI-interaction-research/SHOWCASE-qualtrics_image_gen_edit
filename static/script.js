@@ -61,7 +61,7 @@ async function loadImage(url) {
         img.crossOrigin = 'anonymous';
         img.onload = () => resolve(img);
         img.onerror = reject;
-        img.src = `/edit/proxy-image?url=${encodeURIComponent(url)}`;
+        img.src = `/proxy-image?url=${encodeURIComponent(url)}`;
     });
 }
 
@@ -208,7 +208,7 @@ async function submitEdit() {
         const maskBlob = await createMaskFromCanvas();
         
         // Get the original image
-        const response = await fetch(`/edit/proxy-image?url=${encodeURIComponent(originalImageUrl)}`);
+        const response = await fetch(`/proxy-image?url=${encodeURIComponent(originalImageUrl)}`);
         if (!response.ok) throw new Error('Failed to fetch original image');
         
         const imageBlob = await response.blob();
@@ -222,7 +222,7 @@ async function submitEdit() {
         formData.append('model', 'recraftv3');
         formData.append('style', 'realistic_image');
 
-        const apiResponse = await fetch('/edit/direct-modification', {
+        const apiResponse = await fetch('/direct-modification', {
             method: 'POST',
             body: formData
         });

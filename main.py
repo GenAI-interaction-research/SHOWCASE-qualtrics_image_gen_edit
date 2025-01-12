@@ -1,39 +1,32 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template, Response
 from flask_cors import CORS
-import os
-from dotenv import load_dotenv
 import logging
 from openai import OpenAI
-import traceback
-from edit_app import create_edit_app
+import os
+from dotenv import load_dotenv
+from PIL import Image
+from io import BytesIO
+import requests
 
-# Set up logging at module level
+# Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+def ensure_grayscale_png(file_stream):
+    img = Image.open(file_stream)
+    grayscale = img.convert('L')
+    output = BytesIO()
+    grayscale.save(output, format='PNG')
+    output.seek(0)
+    return output
 
 def create_app():
     # Load environment variables
     load_dotenv()
     app = Flask(__name__)
-
+    
     # Configure CORS
-    CORS(app, resources={
-        r"/*": {
-            "origins": [
-                "https://emlyonbs.eu.qualtrics.com"
-            ],
-            "methods": [
-                "POST", "OPTIONS"
-            ],
-            "allow_headers": [
-                "Content-Type", "Origin", "Accept"
-            ],
-            "supports_credentials": True,
-            "expose_headers": [
-                "Content-Type"
-            ]
-        }
-    })
+    CORS(app)
 
     # Setup Recraft client
     RECRAFT_API_TOKEN = os.getenv('RECRAFT_API_TOKEN')
@@ -41,108 +34,134 @@ def create_app():
         logger.error("No Recraft API token found")
         raise ValueError("RECRAFT_API_TOKEN environment variable is required")
 
-    logger.info("Initializing Recraft client...")
-    try:
-        recraft_client = OpenAI(
-            api_key=RECRAFT_API_TOKEN,
-            base_url='https://external.api.recraft.ai/v1'
-        )
-        logger.info("Recraft client initialized successfully")
-        
-        # Register the edit Blueprint with the initialized client
-        edit_blueprint = create_edit_app(recraft_client)
-        app.register_blueprint(edit_blueprint)
-        logger.info("Edit Blueprint registered successfully")
-        
-    except Exception as e:
-        logger.error(f"Failed to initialize Recraft client: {str(e)}")
-        logger.error(traceback.format_exc())
-        raise e
+    recraft_client = OpenAI(
+        api_key=RECRAFT_API_TOKEN,
+        base_url='https://external.api.recraft.ai/v1'
+    )
 
-    @app.route('/')
-    def home():
-        return jsonify({
-            'status': 'healthy',
-            'message': 'Welcome to the Recraft Image Service'
-        })
+    # Generation routes
+    @app.route('/generate')
+    def generate_page():
+        return render_template('generate.html')
 
-    @app.route('/health', methods=['GET', 'OPTIONS'])
-    def health_check():
-        if request.method == 'OPTIONS':
-            return '', 204
-        return jsonify({
-            'status': 'healthy', 
-            'message': 'Service is running'
-        })
-
-    @app.route('/generate-image', methods=['POST', 'OPTIONS'])
+    @app.route('/generate-image', methods=['POST'])
     def generate_image():
-        if request.method == 'OPTIONS':
-            return '', 204
-
         try:
-            logger.info("Received generate-image request")
             data = request.get_json()
-            logger.info(f"Request data: {data}")
-            
             if not data or 'prompt' not in data:
-                logger.error("No prompt in request data")
-                return jsonify({
-                    'success': False,
-                    'error': 'No prompt provided'
-                }), 400
+                return jsonify({'success': False, 'error': 'No prompt provided'})
 
             prompt = data['prompt']
             style = data.get('style', 'realistic_image')
             size = data.get('size', '1024x1024')
-            
-            logger.info(f"Processing prompt: {prompt}, style: {style}")
 
-            try:
-                logger.info(f"Making request to Recraft API with params: {prompt}, {style}, {size}")
-                response = recraft_client.images.generate(
-                    model="recraftv3",
-                    prompt=prompt,
-                    style=style,
-                    size=size,
-                    n=1
+            logger.info(f"Generating image with prompt: {prompt}, style: {style}")
+            
+            response = recraft_client.images.generate(
+                prompt=prompt,
+                style=style
+            )
+            
+            if not response.data:
+                raise ValueError("No image data in response")
+                
+            image_url = response.data[0].url
+            logger.info(f"Image generated successfully: {image_url}")
+            
+            return jsonify({
+                'success': True,
+                'image_url': image_url
+            })
+        except Exception as e:
+            logger.error(f"Error generating image: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)})
+
+    # Editing routes
+    @app.route('/edit')
+    def edit_page():
+        image_url = request.args.get('url')
+        if not image_url:
+            return "No image URL provided", 400
+        return render_template('edit.html', image_url=image_url)
+
+    @app.route('/proxy-image', methods=['GET'])
+    def proxy_image():
+        image_url = request.args.get('url')
+        if not image_url:
+            return jsonify({'error': 'No URL provided'}), 400
+
+        try:
+            response = requests.get(image_url, stream=True)
+            response.raise_for_status()
+
+            # Convert to PNG using Pillow
+            img_data = BytesIO(response.content)
+            with Image.open(img_data) as img:
+                output = BytesIO()
+                img.save(output, format='PNG')
+                output.seek(0)
+                return Response(
+                    output.getvalue(),
+                    mimetype='image/png'
                 )
+        except Exception as e:
+            logger.error(f"Error proxying image: {str(e)}")
+            return jsonify({'error': str(e)}), 500
+
+    @app.route('/direct-modification', methods=['POST'])
+    def direct_modification():
+        try:
+            mask_file = request.files.get('mask')
+            image_file = request.files.get('image')
+            prompt = request.form.get('prompt')
+            
+            if not mask_file or not image_file or not prompt:
+                logger.error(f"Missing required files or prompt. Files: mask={bool(mask_file)}, image={bool(image_file)}, prompt={bool(prompt)}")
+                return jsonify({'success': False, 'error': 'Missing required files or prompt'})
+
+            logger.info(f"Processing inpainting request with prompt: {prompt}")
+
+            # Convert mask to proper grayscale PNG
+            mask_grayscale = ensure_grayscale_png(mask_file)
+            
+            # Convert image to PNG
+            with Image.open(image_file) as img:
+                image_output = BytesIO()
+                img.save(image_output, format='PNG')
+                image_output.seek(0)
+
+            # Make the API request
+            try:
+                logger.info("Preparing to call Recraft API for inpainting")
+                
+                response = recraft_client.post(
+                    path='/images/inpaint',
+                    cast_to=object,
+                    options={'headers': {'Content-Type': 'multipart/form-data'}},
+                    files={
+                        'image': image_output,
+                        'mask': mask_grayscale
+                    },
+                    body={
+                        'prompt': prompt
+                    }
+                )
+                
                 logger.info(f"Raw API response: {response}")
                 
-                if not response.data:
-                    raise ValueError("No image data in response")
-                    
-                image_url = response.data[0].url
-                logger.info(f"Generated image URL: {image_url}")
+                edited_image_url = response['data'][0]['url']
+                logger.info(f"Image edited successfully: {edited_image_url}")
                 
                 return jsonify({
                     'success': True,
-                    'image_url': image_url
+                    'image_url': edited_image_url
                 })
-
-            except Exception as api_error:
-                logger.error(f"API error: {str(api_error)}")
-                logger.error(traceback.format_exc())
-                return jsonify({
-                    'success': False,
-                    'error': f'API error: {str(api_error)}'
-                }), 500
-
+            except Exception as e:
+                logger.error(f"Error during API request: {str(e)}")
+                return jsonify({'success': False, 'error': f'API request failed: {str(e)}'})
         except Exception as e:
-            logger.error(f"Server error: {str(e)}")
-            logger.error(traceback.format_exc())
-            return jsonify({
-                'success': False,
-                'error': f'Server error: {str(e)}'
-            }), 500
-
-    @app.errorhandler(404)
-    def not_found_error(error):
-        return jsonify({'error': 'Not Found'}), 404
-
-    @app.errorhandler(500)
-    def internal_error(error):
-        return jsonify({'error': 'Internal Server Error'}), 500
+            logger.error(f"Error in direct modification: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)})
 
     return app
 
@@ -150,4 +169,4 @@ if __name__ == '__main__':
     app = create_app()
     port = int(os.getenv('PORT', 8080))
     logger.info(f"Starting server on port {port}")
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=port, debug=True)
