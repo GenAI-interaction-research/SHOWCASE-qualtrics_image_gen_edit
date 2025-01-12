@@ -167,7 +167,7 @@ def create_app():
                 img.save(image_output, format='PNG')
                 image_output.seek(0)
 
-            # Make the API request
+            # Make the API request using the official format
             try:
                 logger.info("Preparing to call Recraft API for inpainting")
                 
@@ -183,8 +183,6 @@ def create_app():
                         'prompt': prompt
                     }
                 )
-                
-                logger.info(f"Raw API response: {response}")
                 
                 edited_image_url = response['data'][0]['url']
                 logger.info(f"Image edited successfully: {edited_image_url}")
