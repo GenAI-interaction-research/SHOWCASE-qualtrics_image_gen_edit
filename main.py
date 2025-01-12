@@ -167,24 +167,30 @@ def create_app():
                 img.save(image_output, format='PNG')
                 image_output.seek(0)
 
-            # Make the API request using the official format
             try:
                 logger.info("Preparing to call Recraft API for inpainting")
                 
-                response = recraft_client.post(
-                    path='/images/inpaint',
-                    cast_to=object,
-                    options={'headers': {'Content-Type': 'multipart/form-data'}},
-                    files={
-                        'image': image_output,
-                        'mask': mask_grayscale
-                    },
-                    body={
-                        'prompt': prompt
-                    }
+                # Using direct HTTP request instead of OpenAI client
+                headers = {
+                    'Authorization': f'Bearer {RECRAFT_API_TOKEN}'
+                }
+                files = {
+                    'image': ('image.png', image_output, 'image/png'),
+                    'mask': ('mask.png', mask_grayscale, 'image/png')
+                }
+                data = {'prompt': prompt}
+
+                response = requests.post(
+                    'https://external.api.recraft.ai/v1/images/inpaint',
+                    headers=headers,
+                    files=files,
+                    data=data
                 )
                 
-                edited_image_url = response['data'][0]['url']
+                response.raise_for_status()
+                result = response.json()
+                
+                edited_image_url = result['data'][0]['url']
                 logger.info(f"Image edited successfully: {edited_image_url}")
                 
                 return jsonify({
