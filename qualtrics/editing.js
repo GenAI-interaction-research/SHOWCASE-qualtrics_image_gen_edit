@@ -3,16 +3,27 @@ Qualtrics.SurveyEngine.addOnload(function() {
     that.disableNextButton();
     
     // Canvas setup for drawing
-    var canvas, ctx, isDrawing = false;
+    var canvas, ctx, maskCanvas, maskCtx, isDrawing = false;
     var lastX = 0, lastY = 0;
     
     function createCanvas() {
+        // Main canvas for displaying the image
         canvas = document.createElement('canvas');
         canvas.width = 1024;
         canvas.height = 1024;
         canvas.style.border = '1px solid black';
         canvas.style.cursor = 'crosshair';
         ctx = canvas.getContext('2d', { willReadFrequently: true });
+        
+        // Mask canvas for tracking drawn areas
+        maskCanvas = document.createElement('canvas');
+        maskCanvas.width = 1024;
+        maskCanvas.height = 1024;
+        maskCtx = maskCanvas.getContext('2d');
+        
+        // Fill mask with black
+        maskCtx.fillStyle = 'black';
+        maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
         
         // Load and draw the original image
         var img = new Image();
@@ -28,9 +39,11 @@ Qualtrics.SurveyEngine.addOnload(function() {
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         
-        // Fill with black background for mask
-        // ctx.fillStyle = 'black';
-        // ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // Set mask drawing style
+        maskCtx.strokeStyle = 'white';
+        maskCtx.lineWidth = 20;
+        maskCtx.lineCap = 'round';
+        maskCtx.lineJoin = 'round';
         
         // Add mouse/touch event listeners
         canvas.addEventListener('mousedown', startDrawing);
@@ -54,10 +67,17 @@ Qualtrics.SurveyEngine.addOnload(function() {
     function draw(e) {
         if (!isDrawing) return;
         
+        // Draw on main canvas
         ctx.beginPath();
         ctx.moveTo(lastX, lastY);
         ctx.lineTo(e.offsetX, e.offsetY);
         ctx.stroke();
+        
+        // Draw on mask canvas
+        maskCtx.beginPath();
+        maskCtx.moveTo(lastX, lastY);
+        maskCtx.lineTo(e.offsetX, e.offsetY);
+        maskCtx.stroke();
         
         [lastX, lastY] = [e.offsetX, e.offsetY];
     }
@@ -85,15 +105,18 @@ Qualtrics.SurveyEngine.addOnload(function() {
     }
     
     function clearDrawing() {
-        ctx.fillStyle = 'black';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
+        // Clear main canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         var img = new Image();
         img.crossOrigin = 'anonymous';
         img.onload = function() {
             ctx.drawImage(img, 0, 0, 1024, 1024);
         };
         img.src = Qualtrics.SurveyEngine.getEmbeddedData('InitialImageURL');
+        
+        // Clear mask canvas
+        maskCtx.fillStyle = 'black';
+        maskCtx.fillRect(0, 0, maskCanvas.width, maskCanvas.height);
     }
     
     async function editImage() {
@@ -112,9 +135,55 @@ Qualtrics.SurveyEngine.addOnload(function() {
             errorMessage.hide();
             editButton.prop('disabled', true);
             
-            // Get the mask as PNG blob
+            // Remove any existing mask preview
+            jQuery('#maskPreview').remove();
+            
+            // Save mask URL for debugging
+            const maskUrl = maskCanvas.toDataURL('image/png');
+            Qualtrics.SurveyEngine.setEmbeddedData('MaskImageURL', maskUrl);
+            
+            // Show mask preview
+            const maskPreview = document.createElement('div');
+            maskPreview.id = 'maskPreview';
+            
+            maskPreview.innerHTML = `
+                <div style="margin-top: 20px; border-top: 1px solid #ccc; padding-top: 20px;">
+                    <h4>Mask Preview (White areas will be modified):</h4>
+                    <img src="${maskUrl}" style="border: 2px solid black; max-width: 400px;" />
+                    <div style="margin-top: 10px; font-size: 12px; color: #666;">
+                        Canvas size: ${maskCanvas.width} x ${maskCanvas.height}
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <button id="downloadMaskBtn" style="padding: 5px 10px; cursor: pointer;">
+                            Download Mask Image
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // Get container and add the preview
+            const container = document.getElementById('editingContainer');
+            if (container) {
+                container.appendChild(maskPreview);
+                
+                // Add click handler to the download button
+                document.getElementById('downloadMaskBtn').onclick = function() {
+                    const link = document.createElement('a');
+                    link.download = 'mask.png';
+                    link.href = maskUrl;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                };
+                
+                console.log('Mask preview added to container');
+            } else {
+                console.error('Container not found!');
+            }
+            
+            // Get the mask as blob
             const maskBlob = await new Promise(resolve => {
-                canvas.toBlob(blob => resolve(blob), 'image/png');
+                maskCanvas.toBlob(blob => resolve(blob), 'image/png');
             });
             
             // Create form data
@@ -123,9 +192,13 @@ Qualtrics.SurveyEngine.addOnload(function() {
             formData.append('mask', maskBlob, 'mask.png');
             formData.append('image_url', Qualtrics.SurveyEngine.getEmbeddedData('InitialImageURL'));
             
-            // Send to your backend
+            // Send to backend
             const response = await fetch('https://qualtrics-recraft-api-129769591311.europe-west1.run.app/direct-modification', {
                 method: 'POST',
+                headers: {
+                    'Origin': 'https://emlyonbs.eu.qualtrics.com',
+                    'Accept': 'application/json'
+                },
                 body: formData
             });
             
@@ -195,7 +268,10 @@ Qualtrics.SurveyEngine.addOnload(function() {
     brushSize.min = '5';
     brushSize.max = '50';
     brushSize.value = '20';
-    brushSize.onchange = (e) => ctx.lineWidth = parseInt(e.target.value);
+    brushSize.onchange = (e) => {
+        ctx.lineWidth = parseInt(e.target.value);
+        maskCtx.lineWidth = parseInt(e.target.value);
+    };
     
     brushSizeContainer.appendChild(brushSizeLabel);
     brushSizeContainer.appendChild(brushSize);

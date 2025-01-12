@@ -86,7 +86,7 @@ def create_edit_app(recraft_client):
             try:
                 response = recraft_client.post(
                     path='/images/inpaint',
-                    cast_to=object,
+                    cast_to=dict,
                     options={'headers': {'Content-Type': 'multipart/form-data'}},
                     files={
                         'image': ('image.png', image_output, 'image/png'),
@@ -95,22 +95,43 @@ def create_edit_app(recraft_client):
                     body={
                         'prompt': prompt,
                         'model': 'recraftv3',
-                        'style': 'realistic_image'
+                        'style': 'realistic_image',
+                        'n': 1,
+                        'response_format': 'url'
                     }
                 )
-
-                if response and 'data' in response and response['data']:
-                    logger.info("Successfully processed inpainting request")
+                
+                logger.info(f"Raw API response: {response}")
+                
+                # Check if response is valid and has data
+                if not response or 'data' not in response:
+                    logger.error("Empty response or no data from API")
                     return jsonify({
-                        'success': True,
-                        'image_url': response['data'][0]['url']
+                        'success': False,
+                        'error': 'Empty response or no data from API'
                     })
                 
-                logger.error("No image URL in response")
-                return jsonify({
-                    'success': False,
-                    'error': 'No image URL in response'
-                })
+                # Extract URL from response
+                try:
+                    image_url = response['data'][0]['url']
+                    if image_url:
+                        logger.info(f"Successfully got image URL: {image_url}")
+                        return jsonify({
+                            'success': True,
+                            'image_url': image_url
+                        })
+                    else:
+                        logger.error("No URL in response data")
+                        return jsonify({
+                            'success': False,
+                            'error': 'No URL in response data'
+                        })
+                except (KeyError, IndexError) as e:
+                    logger.error(f"Error extracting URL from response: {str(e)}")
+                    return jsonify({
+                        'success': False,
+                        'error': f'Error extracting URL from response: {str(e)}'
+                    })
                 
             except Exception as e:
                 logger.error(f"Recraft API error: {str(e)}")
