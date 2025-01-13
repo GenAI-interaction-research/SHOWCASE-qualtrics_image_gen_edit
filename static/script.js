@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Set canvas display size based on container
     const container = document.querySelector('.canvas-container');
-    const containerWidth = container.clientWidth;
+    const containerWidth = Math.min(container.clientWidth, 800); // Max width of 800px
     
     // Set both display size
     paper.view.viewSize = new paper.Size(containerWidth, containerWidth);
@@ -22,12 +22,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         raster = new paper.Raster(img);
         
         // Calculate scale to fit the image properly
-        const scale = Math.min(1024 / img.width, 1024 / img.height);
+        const scale = Math.min(containerWidth / img.width, containerWidth / img.height);
         
         raster.scale(scale);
         raster.position = paper.view.center;
+
+        // Store the view size and scale for coordinate mapping
+        const viewWidth = paper.view.viewSize.width;
+        const viewHeight = paper.view.viewSize.height;
         
-        // Set up lasso tool
+        // Set up lasso tool with proper coordinate mapping
         const tool = new paper.Tool();
         
         tool.onMouseDown = (event) => {
@@ -44,7 +48,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         tool.onMouseDrag = (event) => {
             if (isDrawing) {
-                path.add(event.point);
+                // Get the actual canvas element
+                const canvas = document.getElementById('canvas');
+                // Get canvas bounds
+                const bounds = canvas.getBoundingClientRect();
+                
+                // Calculate the scaled point
+                const x = (event.event.clientX - bounds.left) * (canvas.width / bounds.width);
+                const y = (event.event.clientY - bounds.top) * (canvas.height / bounds.height);
+                
+                path.add(new paper.Point(x, y));
             }
         };
         
