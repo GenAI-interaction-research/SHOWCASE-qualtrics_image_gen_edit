@@ -225,9 +225,8 @@ async function submitEdit() {
 
         const result = await apiResponse.json();
         if (result.success) {
-            editedImage.src = result.image_url;
-            resultDiv.classList.remove('hidden');
-            window.scrollTo({ top: resultDiv.offsetTop, behavior: 'smooth' });
+            // Instead of showing the result, redirect to a new edit page
+            window.location.href = `/edit?url=${encodeURIComponent(result.image_url)}`;
         } else {
             throw new Error(result.error || 'Failed to process edit');
         }
