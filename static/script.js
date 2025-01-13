@@ -1,55 +1,64 @@
-let canvas;
+let path;
+let isDrawing = false;
+let raster;
 
 // Global current edit count variable
 let currentEditCount;
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // Initialize Fabric canvas
-    canvas = new fabric.Canvas('canvas');
-
+    // Set up Paper.js
+    paper.setup('canvas');
+    
     // Set canvas display size based on container
     const container = document.querySelector('.canvas-container');
     const containerWidth = container.clientWidth;
     
-    // Set both display and internal size to 1024x1024
-    canvas.setWidth(containerWidth);
-    canvas.setHeight(containerWidth);
-    canvas.setDimensions({
-        width: 1024,
-        height: 1024
-    }, { backstoreOnly: true });
-
+    // Set both display size
+    paper.view.viewSize = new paper.Size(containerWidth, containerWidth);
+    
     try {
         // Load and display the original image
         const img = await loadImage(originalImageUrl);
-        const fabricImage = new fabric.Image(img);
-
+        raster = new paper.Raster(img);
+        
         // Calculate scale to fit the image properly
-        const scaleX = 1024 / fabricImage.width;
-        const scaleY = 1024 / fabricImage.height;
-        const scale = Math.min(scaleX, scaleY);
-
-        fabricImage.set({
-            scaleX: scale,
-            scaleY: scale,
-            left: (1024 - fabricImage.width * scale) / 2,
-            top: (1024 - fabricImage.height * scale) / 2,
-            selectable: false,
-            evented: false
-        });
-
-        canvas.add(fabricImage);
-        canvas.renderAll();
-
-        // Setup drawing brush
-        canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
-        canvas.freeDrawingBrush.width = 30;
-        canvas.freeDrawingBrush.color = 'rgba(255, 255, 255, 0.5)';
+        const scale = Math.min(1024 / img.width, 1024 / img.height);
+        
+        raster.scale(scale);
+        raster.position = paper.view.center;
+        
+        // Set up lasso tool
+        const tool = new paper.Tool();
+        
+        tool.onMouseDown = (event) => {
+            if (!isDrawing) {
+                isDrawing = true;
+                path = new paper.Path({
+                    segments: [event.point],
+                    strokeColor: 'white',
+                    strokeWidth: 2,
+                    fillColor: new paper.Color(1, 1, 1, 0.3)
+                });
+            }
+        };
+        
+        tool.onMouseDrag = (event) => {
+            if (isDrawing) {
+                path.add(event.point);
+            }
+        };
+        
+        tool.onMouseUp = (event) => {
+            if (isDrawing) {
+                path.closed = true;
+                path.smooth();
+                isDrawing = false;
+            }
+        };
 
         // Set up event listeners
-        document.getElementById('drawButton').addEventListener('click', toggleDrawing);
-        document.getElementById('clearButton').addEventListener('click', clearDrawing);
-        document.getElementById('brushSize').addEventListener('input', updateBrushSize);
+        document.getElementById('lassoButton').addEventListener('click', toggleLasso);
+        document.getElementById('clearButton').addEventListener('click', clearSelection);
         document.getElementById('applyEditButton').addEventListener('click', submitEdit);
 
     } catch (error) {
@@ -68,30 +77,27 @@ async function loadImage(url) {
     });
 }
 
-function toggleDrawing() {
-    canvas.isDrawingMode = !canvas.isDrawingMode;
-    const button = document.getElementById('drawButton');
-    button.textContent = canvas.isDrawingMode ? 'Finish Drawing' : 'Draw Selection';
+function toggleLasso() {
+    const button = document.getElementById('lassoButton');
+    if (isDrawing) {
+        isDrawing = false;
+        if (path) {
+            path.closed = true;
+            path.smooth();
+        }
+        button.textContent = 'Start Lasso Selection';
+    } else {
+        button.textContent = 'Finish Selection';
+    }
     button.classList.toggle('bg-green-600');
 }
 
-function clearDrawing() {
-    const objects = canvas.getObjects();
-    for (let i = objects.length - 1; i > 0; i--) {
-        canvas.remove(objects[i]);
+function clearSelection() {
+    if (path) {
+        path.remove();
+        path = null;
     }
-    canvas.renderAll();
-    clearMaskPreviews();
-}
-
-function clearMaskPreviews() {
-    const existingPreviews = document.querySelectorAll('.mask-preview-container');
-    existingPreviews.forEach(preview => preview.remove());
-}
-
-function updateBrushSize(e) {
-    const size = parseInt(e.target.value);
-    canvas.freeDrawingBrush.width = size;
+    paper.view.update();
 }
 
 async function createMaskFromCanvas() {
@@ -105,70 +111,46 @@ async function createMaskFromCanvas() {
     ctx.fillRect(0, 0, 1024, 1024);
     
     // Set up for pure white drawing
-    ctx.strokeStyle = 'rgb(255, 255, 255)';
     ctx.fillStyle = 'rgb(255, 255, 255)';
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-
-    // Calculate scale factor between display canvas and output canvas
-    const scaleFactor = 1024 / canvas.width;
     
-    // Draw each path
-    const paths = canvas.getObjects().slice(1);
-    paths.forEach(path => {
-        if (path.type === 'path' && path.path) {
-            // Scale the line width
-            ctx.lineWidth = path.strokeWidth * scaleFactor;
+    if (path) {
+        // Scale the path points to 1024x1024
+        const scaleFactor = 1024 / paper.view.viewSize.width;
+        
+        ctx.beginPath();
+        path.segments.forEach((segment, index) => {
+            const x = segment.point.x * scaleFactor;
+            const y = segment.point.y * scaleFactor;
             
-            ctx.beginPath();
-            
-            // Transform and draw the path
-            path.path.forEach((point, index) => {
-                // Get coordinates
-                const x = point[1] * scaleFactor;
-                const y = point[2] * scaleFactor;
-                
-                if (point[0] === 'M') {
-                    ctx.moveTo(x, y);
-                } else if (point[0] === 'L') {
-                    ctx.lineTo(x, y);
-                } else if (point[0] === 'Q') {
-                    const controlX = point[1] * scaleFactor;
-                    const controlY = point[2] * scaleFactor;
-                    const endX = point[3] * scaleFactor;
-                    const endY = point[4] * scaleFactor;
-                    ctx.quadraticCurveTo(controlX, controlY, endX, endY);
-                }
-            });
-            
-            ctx.stroke();
-        }
-    });
+            if (index === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        });
+        
+        ctx.closePath();
+        ctx.fill();
+    }
 
     // Convert to grayscale and ensure binary values
     const imageData = ctx.getImageData(0, 0, 1024, 1024);
     const data = imageData.data;
     
     for (let i = 0; i < data.length; i += 4) {
-        // Average the RGB values and threshold
         const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
         const value = avg > 127 ? 255 : 0;
         
-        // Set all channels to the same value
         data[i] = value;     // R
         data[i + 1] = value; // G
         data[i + 2] = value; // B
-        data[i + 3] = 255;   // A (full opacity)
+        data[i + 3] = 255;   // A
     }
     
     ctx.putImageData(imageData, 0, 0);
 
-    // Return as PNG blob without showing preview
     return new Promise(resolve => {
         tempCanvas.toBlob(blob => {
-            console.log('Creating mask blob');
-            console.log('Mask blob type:', blob.type);
-            console.log('Mask blob size:', blob.size);
             resolve(blob);
         }, 'image/png', { quality: 1 });
     });
@@ -196,9 +178,8 @@ async function submitEdit() {
         formData.append('image', await fetch(originalImageUrl).then(r => r.blob()));
         formData.append('mask', maskBlob);
         formData.append('prompt', prompt);
-        formData.append('style', style);  // Add style to form data
+        formData.append('style', style);
         formData.append('model', 'recraftv3');
-        formData.append('style', 'realistic_image');
 
         const apiResponse = await fetch('/direct-modification', {
             method: 'POST',

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Edit Image</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paper.js/0.12.17/paper-full.min.js"></script>
     <style>
         .canvas-container {
             margin: auto;
@@ -47,21 +47,17 @@
             <!-- Canvas container -->
             <div class="mb-6">
                 <div class="canvas-container mb-4">
-                    <canvas id="canvas"></canvas>
+                    <canvas id="canvas" resize></canvas>
                 </div>
                 
-                <!-- Drawing tools -->
+                <!-- Selection tools -->
                 <div class="flex justify-center gap-4 mt-4">
-                    <button id="drawButton" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-                        Draw Selection
+                    <button id="lassoButton" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+                        Start Lasso Selection
                     </button>
                     <button id="clearButton" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
                         Clear Selection
                     </button>
-                    <div class="flex items-center gap-2">
-                        <label for="brushSize" class="text-sm">Brush Size:</label>
-                        <input type="range" id="brushSize" min="5" max="50" value="30" class="w-24">
-                    </div>
                 </div>
             </div>
 
