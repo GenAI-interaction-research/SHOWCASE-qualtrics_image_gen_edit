@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const viewWidth = paper.view.viewSize.width;
         const viewHeight = paper.view.viewSize.height;
         
-        // Set up lasso tool with proper coordinate mapping
+        // Set up freeform selection tool
         const tool = new paper.Tool();
         
         tool.onMouseDown = (event) => {
@@ -40,8 +40,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 path = new paper.Path({
                     segments: [event.point],
                     strokeColor: 'white',
-                    strokeWidth: 2,
-                    fillColor: new paper.Color(1, 1, 1, 0.3)
+                    strokeWidth: 1.5,
+                    fillColor: new paper.Color(1, 1, 1, 0.2),
+                    strokeJoin: 'miter',  // Sharp corners for precise selection
+                    strokeCap: 'butt'     // Sharp line ends
                 });
             }
         };
@@ -57,14 +59,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const x = (event.event.clientX - bounds.left) * (canvas.width / bounds.width);
                 const y = (event.event.clientY - bounds.top) * (canvas.height / bounds.height);
                 
+                // Add point directly without any smoothing or restrictions
                 path.add(new paper.Point(x, y));
             }
         };
         
         tool.onMouseUp = (event) => {
             if (isDrawing) {
+                // Simply close the path without any smoothing
                 path.closed = true;
-                path.smooth();
                 isDrawing = false;
             }
         };
@@ -96,7 +99,6 @@ function toggleLasso() {
         isDrawing = false;
         if (path) {
             path.closed = true;
-            path.smooth();
         }
         button.textContent = 'Start Lasso Selection';
     } else {
