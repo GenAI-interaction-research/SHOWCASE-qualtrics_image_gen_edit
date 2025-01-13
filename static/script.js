@@ -225,7 +225,7 @@ async function submitEdit() {
 
         const result = await apiResponse.json();
         if (result.success) {
-            // Increment edit count and redirect to new edit page
+            // Get current edit count from the template variable
             const currentEditCount = parseInt(document.getElementById('editCount').textContent);
             const nextEditCount = currentEditCount + 1;
             window.location.href = `/edit?url=${encodeURIComponent(result.image_url)}&count=${nextEditCount}`;
