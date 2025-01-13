@@ -87,7 +87,7 @@ function toggleDrawing() {
         if (path) {
             path.closed = true;
         }
-        button.textContent = 'Draw Selection Circle';
+        button.textContent = 'Draw Selection';
     } else {
         button.textContent = 'Finish Selection';
     }

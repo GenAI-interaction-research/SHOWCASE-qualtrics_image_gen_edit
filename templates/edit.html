@@ -71,7 +71,7 @@
                 <!-- Selection tools -->
                 <div class="flex justify-center gap-4 mt-4">
                     <button id="lassoButton" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-                        Draw Selection Circle
+                        Draw Selection
                     </button>
                     <button id="clearButton" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
                         Clear Selection
@@ -115,8 +115,9 @@
                         Undo Last Edit
                     </button>
                     {% endif %}
-                    <a href="/" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 text-center">
-                        Start All Over Again
+                    <a href="/generate" class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700">
+                        Start All Over Again<br>
+                        <span class="text-xs">(brings you back to initial generation page)</span>
                     </a>
                     {% if edit_count > 3 %}
                     <a href="#" id="qualtricsButton" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-center">
