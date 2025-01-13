@@ -119,12 +119,16 @@ def create_app():
         image_url = request.args.get('url')
         edit_count = request.args.get('count', '1')  # Default to 1 if not provided
         prolific_id = request.args.get('PROLIFIC_PID', '')  # Get Prolific ID from URL
+        previous_url = request.args.get('previous_url', '')
+
         if not image_url:
             return "No image URL provided", 400
+            
         return render_template('edit.html', 
                              image_url=image_url, 
                              edit_count=int(edit_count),
-                             prolific_id=prolific_id)
+                             prolific_id=prolific_id,
+                             previous_url=previous_url)
 
     @app.route('/proxy-image', methods=['GET'])
     def proxy_image():

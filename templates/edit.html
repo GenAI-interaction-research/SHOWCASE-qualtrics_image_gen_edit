@@ -82,6 +82,11 @@
                     <button id="applyEditButton" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
                         Apply Changes
                     </button>
+                    {% if edit_count > 1 %}
+                    <button id="undoButton" class="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700">
+                        Undo Last Edit
+                    </button>
+                    {% endif %}
                     <a href="/" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 text-center">
                         Start All Over Again
                     </a>
@@ -104,6 +109,7 @@
         window.originalImageUrl = "{{ image_url }}";
         window.editCount = parseInt("{{ edit_count }}");
         window.prolificId = "{{ prolific_id }}";
+        window.previousImageUrl = "{{ request.args.get('previous_url', '') }}";
     </script>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
