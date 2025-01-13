@@ -166,31 +166,39 @@ def create_app():
             if not all([image_file, mask_file, prompt]):
                 return jsonify({'success': False, 'error': 'Missing required fields'}), 400
 
-            # Prepare the files for the API request
-            files = {
-                'image': (image_file.filename, image_file.stream, image_file.content_type),
-                'mask': (mask_file.filename, mask_file.stream, mask_file.content_type)
-            }
-
-            # Prepare the data for the API request
-            data = {
-                'prompt': prompt,
-                'style': style  # Add style to API request
-            }
+            # Convert mask to proper grayscale PNG
+            mask_grayscale = ensure_grayscale_png(mask_file)
+            
+            # Convert image to PNG
+            with Image.open(image_file) as img:
+                image_output = BytesIO()
+                img.save(image_output, format='PNG')
+                image_output.seek(0)
 
             try:
                 logger.info("Preparing to call Recraft API for inpainting")
                 
-                # Using direct HTTP request instead of OpenAI client
                 headers = {
                     'Authorization': f'Bearer {RECRAFT_API_TOKEN}'
+                }
+
+                # Separate files and body data
+                files = {
+                    'image': ('image.png', image_output, 'image/png'),
+                    'mask': ('mask.png', mask_grayscale, 'image/png')
+                }
+
+                # Body data includes prompt and style
+                body = {
+                    'prompt': prompt,
+                    'style': style
                 }
 
                 response = requests.post(
                     'https://external.api.recraft.ai/v1/images/inpaint',
                     headers=headers,
                     files=files,
-                    data=data
+                    data=body  # Use data for form fields
                 )
                 
                 response.raise_for_status()
