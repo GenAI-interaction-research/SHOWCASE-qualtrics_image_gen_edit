@@ -35,12 +35,8 @@
         <div class="max-w-4xl mx-auto bg-white rounded-lg shadow p-6">
             <div class="flex justify-between items-center mb-6">
                 <h1 class="text-2xl font-bold">
-                    {% if edit_count == 1 %}
-                        1st Edit
-                    {% elif edit_count == 2 %}
-                        2nd Edit
-                    {% elif edit_count == 3 %}
-                        3rd Edit
+                    {% if edit_count <= 3 %}
+                        Edit {{ edit_count }}
                     {% else %}
                         Edit #{{ edit_count }}
                     {% endif %}
@@ -89,7 +85,7 @@
                     <a href="/" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 text-center">
                         Start All Over Again
                     </a>
-                    {% if edit_count >= 3 %}
+                    {% if edit_count > 3 %}
                     <a href="#" id="qualtricsButton" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-center">
                         Return to Survey
                     </a>
