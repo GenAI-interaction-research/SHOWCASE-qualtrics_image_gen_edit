@@ -27,23 +27,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         raster.scale(scale);
         raster.position = paper.view.center;
 
-        // Store the view size and scale for coordinate mapping
-        const viewWidth = paper.view.viewSize.width;
-        const viewHeight = paper.view.viewSize.height;
-        
-        // Set up freeform selection tool
+        // Set up selection tool
         const tool = new paper.Tool();
         
         tool.onMouseDown = (event) => {
             if (!isDrawing) {
                 isDrawing = true;
+                // Create a new path with dashed stroke
                 path = new paper.Path({
                     segments: [event.point],
                     strokeColor: 'white',
-                    strokeWidth: 1.5,
-                    fillColor: new paper.Color(1, 1, 1, 0.2),
-                    strokeJoin: 'miter',  // Sharp corners for precise selection
-                    strokeCap: 'butt'     // Sharp line ends
+                    strokeWidth: 2,
+                    dashArray: [5, 5], // Create dashed line effect
+                    fillColor: new paper.Color(1, 1, 1, 0.2)
                 });
             }
         };
@@ -59,21 +55,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const x = (event.event.clientX - bounds.left) * (canvas.width / bounds.width);
                 const y = (event.event.clientY - bounds.top) * (canvas.height / bounds.height);
                 
-                // Add point directly without any smoothing or restrictions
+                // Add point to create continuous line
                 path.add(new paper.Point(x, y));
             }
         };
         
         tool.onMouseUp = (event) => {
             if (isDrawing) {
-                // Simply close the path without any smoothing
+                // Close the path to create a complete selection
                 path.closed = true;
                 isDrawing = false;
             }
         };
 
         // Set up event listeners
-        document.getElementById('lassoButton').addEventListener('click', toggleLasso);
+        document.getElementById('lassoButton').addEventListener('click', toggleDrawing);
         document.getElementById('clearButton').addEventListener('click', clearSelection);
         document.getElementById('applyEditButton').addEventListener('click', submitEdit);
 
@@ -83,24 +79,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-async function loadImage(url) {
-    return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = () => resolve(img);
-        img.onerror = reject;
-        img.src = `/proxy-image?url=${encodeURIComponent(url)}`;
-    });
-}
-
-function toggleLasso() {
+function toggleDrawing() {
     const button = document.getElementById('lassoButton');
     if (isDrawing) {
         isDrawing = false;
         if (path) {
             path.closed = true;
         }
-        button.textContent = 'Start Lasso Selection';
+        button.textContent = 'Draw Selection Circle';
     } else {
         button.textContent = 'Finish Selection';
     }
@@ -125,10 +111,10 @@ async function createMaskFromCanvas() {
     ctx.fillStyle = 'rgb(0, 0, 0)';
     ctx.fillRect(0, 0, 1024, 1024);
     
-    // Set up for pure white drawing
-    ctx.fillStyle = 'rgb(255, 255, 255)';
-    
     if (path) {
+        // Set up for pure white drawing
+        ctx.fillStyle = 'rgb(255, 255, 255)';
+        
         // Scale the path points to 1024x1024
         const scaleFactor = 1024 / paper.view.viewSize.width;
         
@@ -168,6 +154,16 @@ async function createMaskFromCanvas() {
         tempCanvas.toBlob(blob => {
             resolve(blob);
         }, 'image/png', { quality: 1 });
+    });
+}
+
+async function loadImage(url) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = `/proxy-image?url=${encodeURIComponent(url)}`;
     });
 }
 
