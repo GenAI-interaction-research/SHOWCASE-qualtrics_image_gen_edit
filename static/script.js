@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Setup drawing brush
         canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
-        canvas.freeDrawingBrush.width = 20;
+        canvas.freeDrawingBrush.width = 30;
         canvas.freeDrawingBrush.color = 'rgba(255, 255, 255, 0.5)';
 
         // Set up event listeners
@@ -225,8 +225,10 @@ async function submitEdit() {
 
         const result = await apiResponse.json();
         if (result.success) {
-            // Instead of showing the result, redirect to a new edit page
-            window.location.href = `/edit?url=${encodeURIComponent(result.image_url)}`;
+            // Increment edit count and redirect to new edit page
+            const currentEditCount = parseInt(document.getElementById('editCount').textContent);
+            const nextEditCount = currentEditCount + 1;
+            window.location.href = `/edit?url=${encodeURIComponent(result.image_url)}&count=${nextEditCount}`;
         } else {
             throw new Error(result.error || 'Failed to process edit');
         }
@@ -246,3 +248,15 @@ function showError(message) {
     errorDiv.textContent = message;
     errorDiv.classList.remove('hidden');
 }
+
+// Add event listener for Qualtrics button if it exists
+document.addEventListener('DOMContentLoaded', () => {
+    const qualtricsButton = document.getElementById('qualtricsButton');
+    if (qualtricsButton) {
+        qualtricsButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            // Replace this URL with the actual Qualtrics survey URL when available
+            window.location.href = 'https://placeholder-qualtrics-survey-url.com';
+        });
+    }
+});

@@ -33,7 +33,19 @@
 <body class="bg-gray-50">
     <div class="container mx-auto px-4 py-8">
         <div class="max-w-4xl mx-auto bg-white rounded-lg shadow p-6">
-            <h1 class="text-2xl font-bold mb-6">Edit Image</h1>
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-2xl font-bold">
+                    {% if edit_count == 1 %}
+                        1st Edit
+                    {% elif edit_count == 2 %}
+                        2nd Edit
+                    {% elif edit_count == 3 %}
+                        3rd Edit
+                    {% else %}
+                        Edit #{{ edit_count }}
+                    {% endif %}
+                </h1>
+            </div>
             
             <!-- Canvas container -->
             <div class="mb-6">
@@ -51,7 +63,7 @@
                     </button>
                     <div class="flex items-center gap-2">
                         <label for="brushSize" class="text-sm">Brush Size:</label>
-                        <input type="range" id="brushSize" min="5" max="50" value="20" class="w-24">
+                        <input type="range" id="brushSize" min="5" max="50" value="30" class="w-24">
                     </div>
                 </div>
             </div>
@@ -74,8 +86,13 @@
                         Apply Changes
                     </button>
                     <a href="/" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 text-center">
-                        Back to Generator
+                        Start All Over Again
                     </a>
+                    {% if edit_count >= 3 %}
+                    <a href="#" id="qualtricsButton" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-center">
+                        Return to Survey
+                    </a>
+                    {% endif %}
                 </div>
             </div>
 
@@ -88,6 +105,7 @@
 
     <script>
         const originalImageUrl = "{{ image_url }}";
+        const currentEditCount = {{ edit_count }};
     </script>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>

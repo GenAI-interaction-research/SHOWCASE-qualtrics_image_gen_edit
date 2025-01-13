@@ -117,9 +117,10 @@ def create_app():
     @app.route('/edit')
     def edit_page():
         image_url = request.args.get('url')
+        edit_count = request.args.get('count', '1')  # Default to 1 if not provided
         if not image_url:
             return "No image URL provided", 400
-        return render_template('edit.html', image_url=image_url)
+        return render_template('edit.html', image_url=image_url, edit_count=int(edit_count))
 
     @app.route('/proxy-image', methods=['GET'])
     def proxy_image():
