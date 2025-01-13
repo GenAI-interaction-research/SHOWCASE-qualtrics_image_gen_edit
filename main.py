@@ -129,6 +129,58 @@ def create_app():
             logger.error(f"Server Error: {str(e)}")
             return jsonify({'success': False, 'error': f'Server error: {str(e)}'}), 500
 
+    @app.route('/generate-image', methods=['POST'])
+    def generate_image():
+        try:
+            logger.info("Received generate-image request")
+            
+            data = request.get_json()
+            logger.info(f"Request data: {data}")
+            
+            if not data or 'prompt' not in data:
+                logger.error("No prompt provided in request")
+                return jsonify({'success': False, 'error': 'No prompt provided'}), 400
+            
+            prompt = data['prompt']
+            selected_style = data.get('style', 'realistic_image')
+            
+            # Get style parameters
+            style_params = get_style_params(selected_style)
+            
+            try:
+                # If we have a substyle, include it in the generation
+                if style_params['substyle']:
+                    response = recraft_client.images.generate(
+                        prompt=prompt,
+                        style=style_params['style'],
+                        extra_body={'substyle': style_params['substyle']}
+                    )
+                else:
+                    response = recraft_client.images.generate(
+                        prompt=prompt,
+                        style=style_params['style']
+                    )
+                
+                if not response.data:
+                    logger.error("No image data in response")
+                    return jsonify({'success': False, 'error': 'No image data in API response'}), 500
+                    
+                image_url = response.data[0].url
+                logger.info(f"Image generated successfully: {image_url}")
+                
+                return jsonify({
+                    'success': True,
+                    'image_url': image_url
+                })
+                
+            except Exception as e:
+                logger.error(f"API Error: {str(e)}")
+                return jsonify({'success': False, 'error': f'API error: {str(e)}'}), 500
+                
+        except Exception as e:
+            logger.error(f"Server Error: {str(e)}")
+            return jsonify({'success': False, 'error': f'Server error: {str(e)}'}), 500
+
     # Editing routes
     @app.route('/edit')
     def edit_page():
