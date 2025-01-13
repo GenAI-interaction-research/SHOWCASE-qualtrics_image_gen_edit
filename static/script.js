@@ -230,7 +230,8 @@ async function submitEdit() {
         if (result.success) {
             // Get current edit count and redirect to new edit page
             const nextEditCount = window.editCount + 1;
-            window.location.href = `/edit?url=${encodeURIComponent(result.image_url)}&count=${nextEditCount}`;
+            // Pass the current image as previous_url for potential undo
+            window.location.href = `/edit?url=${encodeURIComponent(result.image_url)}&count=${nextEditCount}&previous_url=${encodeURIComponent(window.originalImageUrl)}`;
         } else {
             throw new Error(result.error || 'Failed to process edit');
         }
@@ -275,6 +276,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Redirect back to Qualtrics with the data
             window.location.href = `${baseUrl}?${params.toString()}`;
+        });
+    }
+});
+
+// Add event listener for undo button
+document.addEventListener('DOMContentLoaded', () => {
+    const undoButton = document.getElementById('undoButton');
+    if (undoButton && window.previousImageUrl) {
+        undoButton.addEventListener('click', () => {
+            // Redirect to previous image, incrementing the edit count as it's a new edit
+            const nextEditCount = window.editCount + 1;
+            window.location.href = `/edit?url=${encodeURIComponent(window.previousImageUrl)}&count=${nextEditCount}`;
         });
     }
 });
