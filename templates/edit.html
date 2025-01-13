@@ -106,7 +106,7 @@
 
     <script>
         const originalImageUrl = "{{ image_url }}";
-        const currentEditCount = {{ edit_count }};
+        const currentEditCount = parseInt("{{ edit_count }}");
     </script>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>

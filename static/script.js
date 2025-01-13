@@ -1,5 +1,8 @@
 let canvas;
 
+// Global current edit count variable
+let currentEditCount;
+
 document.addEventListener('DOMContentLoaded', async () => {
     // Initialize Fabric canvas
     canvas = new fabric.Canvas('canvas');
@@ -226,7 +229,6 @@ async function submitEdit() {
         const result = await apiResponse.json();
         if (result.success) {
             // Get current edit count from the template variable
-            const currentEditCount = parseInt(document.getElementById('editCount').textContent);
             const nextEditCount = currentEditCount + 1;
             window.location.href = `/edit?url=${encodeURIComponent(result.image_url)}&count=${nextEditCount}`;
         } else {
