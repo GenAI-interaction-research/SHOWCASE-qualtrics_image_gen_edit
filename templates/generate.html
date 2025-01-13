@@ -10,6 +10,20 @@
             opacity: 0.5;
             pointer-events: none;
         }
+        .spinner {
+            display: none;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -50,6 +64,8 @@
                 </div>
 
                 <div id="error" class="p-3 bg-red-100 text-red-700 rounded hidden"></div>
+
+                <div id="spinner" class="spinner"></div>
 
                 <button
                     type="submit"
@@ -93,6 +109,7 @@
             // Show loading state
             form.classList.add('loading');
             buttonText.textContent = 'Generating...';
+            document.getElementById('spinner').style.display = 'block';
 
             try {
                 const response = await fetch('/generate-image', {
@@ -109,20 +126,8 @@
                 }
 
                 if (data.success && data.image_url) {
-                    generatedImage.src = data.image_url;
-                    result.classList.remove('hidden');
-
-                    // Add edit link if it doesn't exist
-                    const existingLink = result.querySelector('.edit-link');
-                    if (!existingLink) {
-                        const editLink = document.createElement('a');
-                        editLink.href = `/edit?url=${encodeURIComponent(data.image_url)}`;
-                        editLink.className = 'edit-link block bg-blue-600 text-white p-3 rounded hover:bg-blue-700 text-center';
-                        editLink.textContent = 'Edit this image';
-                        result.appendChild(editLink);
-                    }
-
-                    window.scrollTo({ top: result.offsetTop, behavior: 'smooth' });
+                    // Redirect to edit page instead of showing the image
+                    window.location.href = `/edit?url=${encodeURIComponent(data.image_url)}`;
                 } else {
                     throw new Error(data.error || 'Failed to generate image');
                 }
@@ -130,6 +135,7 @@
                 console.error('Generation error:', err);
                 error.textContent = err.message || 'An unexpected error occurred';
                 error.classList.remove('hidden');
+                document.getElementById('spinner').style.display = 'none';
             } finally {
                 // Reset loading state
                 form.classList.remove('loading');
