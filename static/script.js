@@ -1,4 +1,4 @@
-let path;
+let paths = [];  // Array to store all paths
 let isDrawing = false;
 let raster;
 
@@ -41,6 +41,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     dashArray: [5, 5], // Create dashed line effect
                     fillColor: new paper.Color(1, 1, 1, 0.2)
                 });
+                paths.push(path);  // Add new path to array
             }
         };
         
@@ -94,10 +95,10 @@ function toggleDrawing() {
 }
 
 function clearSelection() {
-    if (path) {
-        path.remove();
-        path = null;
-    }
+    // Remove all paths from canvas
+    paths.forEach(p => p.remove());
+    paths = [];  // Clear the array
+    path = null; // Reset current path
     paper.view.update();
 }
 
@@ -111,27 +112,30 @@ async function createMaskFromCanvas() {
     ctx.fillStyle = 'rgb(0, 0, 0)';
     ctx.fillRect(0, 0, 1024, 1024);
     
-    if (path) {
+    // Draw all paths
+    if (paths.length > 0) {
         // Set up for pure white drawing
         ctx.fillStyle = 'rgb(255, 255, 255)';
         
         // Scale the path points to 1024x1024
         const scaleFactor = 1024 / paper.view.viewSize.width;
         
-        ctx.beginPath();
-        path.segments.forEach((segment, index) => {
-            const x = segment.point.x * scaleFactor;
-            const y = segment.point.y * scaleFactor;
+        paths.forEach(path => {
+            ctx.beginPath();
+            path.segments.forEach((segment, index) => {
+                const x = segment.point.x * scaleFactor;
+                const y = segment.point.y * scaleFactor;
+                
+                if (index === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
             
-            if (index === 0) {
-                ctx.moveTo(x, y);
-            } else {
-                ctx.lineTo(x, y);
-            }
+            ctx.closePath();
+            ctx.fill();
         });
-        
-        ctx.closePath();
-        ctx.fill();
     }
 
     // Convert to grayscale and ensure binary values
