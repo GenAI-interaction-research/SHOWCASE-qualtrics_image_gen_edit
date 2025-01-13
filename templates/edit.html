@@ -14,6 +14,20 @@
         #canvas {
             border: 1px solid #ccc;
         }
+        .spinner {
+            display: none;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -52,6 +66,8 @@
                 </div>
 
                 <div id="error" class="p-3 bg-red-100 text-red-700 rounded hidden"></div>
+
+                <div id="spinner" class="spinner"></div>
 
                 <div class="flex items-center gap-4">
                     <button id="applyEditButton" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
