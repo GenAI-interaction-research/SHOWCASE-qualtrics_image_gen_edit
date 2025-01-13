@@ -22,6 +22,25 @@ def ensure_grayscale_png(file_stream):
     output.seek(0)
     return output
 
+def get_style_params(selected_style):
+    """Convert selected style to API style and substyle parameters"""
+    # List of all substyles that belong to digital_illustration
+    digital_illustration_substyles = {
+        'hand_drawn', 'infantile_sketch', 'pixel_art', 
+        'expressionism', 'pop_art', 'street_art'
+    }
+    
+    if selected_style in digital_illustration_substyles:
+        return {
+            'style': 'digital_illustration',
+            'substyle': selected_style
+        }
+    else:
+        return {
+            'style': selected_style,
+            'substyle': None
+        }
+
 def create_app():
     # Load environment variables
     load_dotenv()
@@ -66,49 +85,46 @@ def create_app():
     def generate_page():
         return render_template('generate.html')
 
-    @app.route('/generate-image', methods=['POST'])
-    def generate_image():
+    @app.route('/generate', methods=['POST'])
+    def generate():
         try:
-            logger.info("Received generate-image request")
             data = request.get_json()
-            logger.info(f"Request data: {data}")
-            
-            if not data or 'prompt' not in data:
-                logger.error("No prompt provided in request")
-                return jsonify({'success': False, 'error': 'No prompt provided'}), 400
-            
-            prompt = data['prompt']
-            style = data.get('style', 'realistic_image')
-            size = data.get('size', '1024x1024')
+            prompt = data.get('prompt')
+            selected_style = data.get('style', 'realistic_image')
 
-            logger.info(f"Generating image with prompt: {prompt}, style: {style}")
+            if not prompt:
+                return jsonify({'success': False, 'error': 'No prompt provided'}), 400
+
+            style_params = get_style_params(selected_style)
             
-            try:
-                response = recraft_client.images.generate(
-                    prompt=prompt,
-                    style=style
-                )
-                
-                if not response.data:
-                    logger.error("No image data in response")
-                    return jsonify({'success': False, 'error': 'No image data in API response'}), 500
-                    
-                image_url = response.data[0].url
-                logger.info(f"Image generated successfully: {image_url}")
-                
-                return jsonify({
-                    'success': True,
-                    'image_url': image_url
-                })
-            except requests.exceptions.ConnectionError as e:
-                logger.error(f"Connection error to Recraft API: {str(e)}")
-                return jsonify({'success': False, 'error': f'Connection error: {str(e)}'}), 503
-            except requests.exceptions.Timeout as e:
-                logger.error(f"Timeout error with Recraft API: {str(e)}")
-                return jsonify({'success': False, 'error': f'Request timed out: {str(e)}'}), 504
-            except Exception as e:
-                logger.error(f"Unexpected error with Recraft API: {str(e)}")
-                return jsonify({'success': False, 'error': f'Unexpected error: {str(e)}'}), 500
+            # Prepare the request body
+            body = {
+                'prompt': prompt,
+                'style': style_params['style']
+            }
+            
+            # Add substyle if it exists
+            if style_params['substyle']:
+                body['extra_body'] = {'substyle': style_params['substyle']}
+
+            logger.info(f"Generating image with prompt: {prompt}")
+            
+            response = requests.post(
+                'https://external.api.recraft.ai/v1/images/generate',
+                headers={'Authorization': f'Bearer {RECRAFT_API_TOKEN}'},
+                json=body
+            )
+            
+            response.raise_for_status()
+            result = response.json()
+            
+            image_url = result['data'][0]['url']
+            logger.info(f"Image generated successfully: {image_url}")
+            
+            return jsonify({
+                'success': True,
+                'image_url': image_url
+            })
         except Exception as e:
             logger.error(f"Server Error: {str(e)}")
             return jsonify({'success': False, 'error': f'Server error: {str(e)}'}), 500
@@ -161,7 +177,7 @@ def create_app():
             image_file = request.files.get('image')
             mask_file = request.files.get('mask')
             prompt = request.form.get('prompt')
-            style = request.form.get('style', 'realistic_image')  # Default to realistic if not specified
+            selected_style = request.form.get('style', 'realistic_image')  # Default to realistic if not specified
 
             if not all([image_file, mask_file, prompt]):
                 return jsonify({'success': False, 'error': 'Missing required fields'}), 400
@@ -176,27 +192,26 @@ def create_app():
                 image_output.seek(0)
 
             try:
-                logger.info("Preparing to call Recraft API for inpainting")
+                style_params = get_style_params(selected_style)
                 
-                headers = {
-                    'Authorization': f'Bearer {RECRAFT_API_TOKEN}'
+                # Prepare the body with style parameters
+                body = {
+                    'prompt': prompt,
+                    'style': style_params['style']
                 }
+                
+                # Add substyle if it exists
+                if style_params['substyle']:
+                    body['extra_body'] = {'substyle': style_params['substyle']}
 
-                # Separate files and body data
                 files = {
                     'image': ('image.png', image_output, 'image/png'),
                     'mask': ('mask.png', mask_grayscale, 'image/png')
                 }
 
-                # Body data includes prompt and style
-                body = {
-                    'prompt': prompt,
-                    'style': style
-                }
-
                 response = requests.post(
                     'https://external.api.recraft.ai/v1/images/inpaint',
-                    headers=headers,
+                    headers={'Authorization': f'Bearer {RECRAFT_API_TOKEN}'},
                     files=files,
                     data=body  # Use data for form fields
                 )
