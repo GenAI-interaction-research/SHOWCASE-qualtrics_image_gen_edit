@@ -103,7 +103,7 @@
             document.getElementById('spinner').style.display = 'block';
 
             try {
-                const response = await fetch('/generate-image', {
+                const response = await fetch('/generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ prompt, style })
