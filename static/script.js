@@ -228,8 +228,8 @@ async function submitEdit() {
 
         const result = await apiResponse.json();
         if (result.success) {
-            // Get current edit count from the template variable
-            const nextEditCount = currentEditCount + 1;
+            // Get current edit count and redirect to new edit page
+            const nextEditCount = window.editCount + 1;
             window.location.href = `/edit?url=${encodeURIComponent(result.image_url)}&count=${nextEditCount}`;
         } else {
             throw new Error(result.error || 'Failed to process edit');

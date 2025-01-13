@@ -105,8 +105,8 @@
     </div>
 
     <script>
-        const originalImageUrl = "{{ image_url }}";
-        const currentEditCount = parseInt("{{ edit_count }}");
+        window.originalImageUrl = "{{ image_url }}";
+        window.editCount = parseInt("{{ edit_count }}");
     </script>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
