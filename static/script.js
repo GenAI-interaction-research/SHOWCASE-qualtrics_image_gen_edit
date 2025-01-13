@@ -257,8 +257,24 @@ document.addEventListener('DOMContentLoaded', () => {
     if (qualtricsButton) {
         qualtricsButton.addEventListener('click', (e) => {
             e.preventDefault();
-            // Replace this URL with the actual Qualtrics survey URL when available
-            window.location.href = 'https://placeholder-qualtrics-survey-url.com';
+            
+            // Get the current image URL
+            const finalImageUrl = window.originalImageUrl;
+            
+            // Prepare the data for Qualtrics
+            const qualtricsData = {
+                final_image: finalImageUrl,
+                edit_count: window.editCount,
+                PROLIFIC_PID: window.prolificId  // Include Prolific ID
+            };
+
+            // Construct the return URL with data
+            // Note: Replace 'YOUR_QUALTRICS_URL' with the actual survey URL
+            const baseUrl = 'YOUR_QUALTRICS_URL';
+            const params = new URLSearchParams(qualtricsData);
+
+            // Redirect back to Qualtrics with the data
+            window.location.href = `${baseUrl}?${params.toString()}`;
         });
     }
 });
