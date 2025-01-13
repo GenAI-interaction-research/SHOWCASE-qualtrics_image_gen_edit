@@ -175,18 +175,8 @@ async function createMaskFromCanvas() {
 }
 
 async function submitEdit() {
-    const promptText = document.getElementById('prompt').value.trim();
-
-    if (!promptText) {
-        showError('Please enter a prompt.');
-        return;
-    }
-
-    if (canvas.getObjects().length <= 1) {
-        showError('Please draw a selection area first.');
-        return;
-    }
-
+    const prompt = document.getElementById('prompt').value.trim();
+    const style = document.getElementById('style').value;
     const applyEditButton = document.getElementById('applyEditButton');
     const errorDiv = document.getElementById('error');
     const resultDiv = document.getElementById('result');
@@ -201,18 +191,12 @@ async function submitEdit() {
 
         const maskBlob = await createMaskFromCanvas();
         
-        // Get the original image
-        const response = await fetch(`/proxy-image?url=${encodeURIComponent(originalImageUrl)}`);
-        if (!response.ok) throw new Error('Failed to fetch original image');
-        
-        const imageBlob = await response.blob();
-        console.log('Original image type:', imageBlob.type);
-        console.log('Original image size:', imageBlob.size);
-
+        // Create form data with mask, prompt, and style
         const formData = new FormData();
-        formData.append('prompt', promptText);
-        formData.append('image', imageBlob, 'image.png');
-        formData.append('mask', maskBlob, 'mask.png');
+        formData.append('image', await fetch(originalImageUrl).then(r => r.blob()));
+        formData.append('mask', maskBlob);
+        formData.append('prompt', prompt);
+        formData.append('style', style);  // Add style to form data
         formData.append('model', 'recraftv3');
         formData.append('style', 'realistic_image');
 

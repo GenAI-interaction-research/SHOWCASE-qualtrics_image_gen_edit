@@ -157,24 +157,26 @@ def create_app():
     @app.route('/direct-modification', methods=['POST'])
     def direct_modification():
         try:
-            mask_file = request.files.get('mask')
+            # Get the files and prompt from the request
             image_file = request.files.get('image')
+            mask_file = request.files.get('mask')
             prompt = request.form.get('prompt')
-            
-            if not mask_file or not image_file or not prompt:
-                logger.error(f"Missing required files or prompt. Files: mask={bool(mask_file)}, image={bool(image_file)}, prompt={bool(prompt)}")
-                return jsonify({'success': False, 'error': 'Missing required files or prompt'})
+            style = request.form.get('style', 'realistic_image')  # Default to realistic if not specified
 
-            logger.info(f"Processing inpainting request with prompt: {prompt}")
+            if not all([image_file, mask_file, prompt]):
+                return jsonify({'success': False, 'error': 'Missing required fields'}), 400
 
-            # Convert mask to proper grayscale PNG
-            mask_grayscale = ensure_grayscale_png(mask_file)
-            
-            # Convert image to PNG
-            with Image.open(image_file) as img:
-                image_output = BytesIO()
-                img.save(image_output, format='PNG')
-                image_output.seek(0)
+            # Prepare the files for the API request
+            files = {
+                'image': (image_file.filename, image_file.stream, image_file.content_type),
+                'mask': (mask_file.filename, mask_file.stream, mask_file.content_type)
+            }
+
+            # Prepare the data for the API request
+            data = {
+                'prompt': prompt,
+                'style': style  # Add style to API request
+            }
 
             try:
                 logger.info("Preparing to call Recraft API for inpainting")
@@ -183,11 +185,6 @@ def create_app():
                 headers = {
                     'Authorization': f'Bearer {RECRAFT_API_TOKEN}'
                 }
-                files = {
-                    'image': ('image.png', image_output, 'image/png'),
-                    'mask': ('mask.png', mask_grayscale, 'image/png')
-                }
-                data = {'prompt': prompt}
 
                 response = requests.post(
                     'https://external.api.recraft.ai/v1/images/inpaint',

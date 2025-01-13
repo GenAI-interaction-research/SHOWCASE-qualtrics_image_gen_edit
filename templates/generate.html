@@ -32,25 +32,14 @@
             <h1 class="text-2xl font-bold mb-6">Image Generator</h1>
             
             <form id="generateForm" class="space-y-6">
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium mb-2">Style</label>
-                        <select id="style" class="w-full p-2 border rounded">
-                            <option value="realistic_image">Realistic Image</option>
-                            <option value="digital_illustration">Digital Illustration</option>
-                            <option value="vector_illustration">Vector Illustration</option>
-                            <option value="icon">Icon</option>
-                        </select>
-                    </div>
-                    
-                    <div>
-                        <label class="block text-sm font-medium mb-2">Size</label>
-                        <select id="size" class="w-full p-2 border rounded">
-                            <option value="1024x1024">1024x1024</option>
-                            <option value="1280x1024">1280x1024</option>
-                            <option value="1024x1280">1024x1280</option>
-                        </select>
-                    </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">Style</label>
+                    <select id="style" class="w-full p-2 border rounded">
+                        <option value="realistic_image">Realistic Image</option>
+                        <option value="digital_illustration">Digital Illustration</option>
+                        <option value="vector_illustration">Vector Illustration</option>
+                        <option value="icon">Icon</option>
+                    </select>
                 </div>
 
                 <div>
@@ -98,7 +87,6 @@
             // Get form values
             const prompt = document.getElementById('prompt').value.trim();
             const style = document.getElementById('style').value;
-            const size = document.getElementById('size').value;
 
             if (!prompt) {
                 error.textContent = 'Please enter a prompt';
@@ -115,7 +103,7 @@
                 const response = await fetch('/generate-image', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt, style, size })
+                    body: JSON.stringify({ prompt, style })
                 });
 
                 const data = await response.json();

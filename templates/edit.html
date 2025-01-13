@@ -67,11 +67,22 @@
 
             <!-- Edit controls -->
             <div class="space-y-4">
-                <div>
-                    <label for="prompt" class="block text-sm font-medium mb-2">Edit Prompt</label>
-                    <textarea id="prompt"
-                              placeholder="Describe changes to the selected area..."
-                              class="w-full p-2 border rounded h-24" required></textarea>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="style" class="block text-sm font-medium mb-2">Style</label>
+                        <select id="style" class="w-full p-2 border rounded">
+                            <option value="realistic_image">Realistic Image</option>
+                            <option value="digital_illustration">Digital Illustration</option>
+                            <option value="vector_illustration">Vector Illustration</option>
+                            <option value="icon">Icon</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="prompt" class="block text-sm font-medium mb-2">Edit Prompt</label>
+                        <textarea id="prompt"
+                                placeholder="Describe changes to the selected area..."
+                                class="w-full p-2 border rounded h-24" required></textarea>
+                    </div>
                 </div>
 
                 <div id="error" class="p-3 bg-red-100 text-red-700 rounded hidden"></div>
