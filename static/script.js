@@ -160,18 +160,7 @@ async function createMaskFromCanvas() {
     
     ctx.putImageData(imageData, 0, 0);
 
-    // Show preview
-    const previewContainer = document.createElement('div');
-    previewContainer.className = 'mask-preview-container mt-4 p-4 border rounded';
-    previewContainer.innerHTML = `
-        <h3 class="text-lg font-medium mb-2">Mask Preview</h3>
-        <img src="${tempCanvas.toDataURL('image/png')}" class="border mb-2" style="max-width: 100%" />
-    `;
-    
-    clearMaskPreviews();
-    document.querySelector('.canvas-container').after(previewContainer);
-
-    // Return as PNG blob
+    // Return as PNG blob without showing preview
     return new Promise(resolve => {
         tempCanvas.toBlob(blob => {
             console.log('Creating mask blob');
@@ -199,11 +188,13 @@ async function submitEdit() {
     const errorDiv = document.getElementById('error');
     const resultDiv = document.getElementById('result');
     const editedImage = document.getElementById('editedImage');
+    const spinner = document.getElementById('spinner');
 
     try {
         applyEditButton.disabled = true;
         applyEditButton.textContent = 'Processing...';
         errorDiv.classList.add('hidden');
+        spinner.style.display = 'block';
 
         const maskBlob = await createMaskFromCanvas();
         
@@ -247,6 +238,7 @@ async function submitEdit() {
     } finally {
         applyEditButton.disabled = false;
         applyEditButton.textContent = 'Apply Changes';
+        spinner.style.display = 'none';
     }
 }
 
