@@ -32,6 +32,9 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        .hidden {
+            display: none !important;
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -46,14 +49,19 @@
                 <div class="border-b border-gray-200">
                     <nav class="-mb-px flex" aria-label="Tabs">
                         <button id="inpaintTab" 
-                                class="w-1/2 py-4 px-1 text-center border-b-2 border-blue-500 text-blue-600 font-medium text-sm cursor-pointer"
+                                class="w-1/3 py-4 px-1 text-center border-b-2 border-blue-500 text-blue-600 font-medium text-sm cursor-pointer"
                                 data-mode="inpaint">
                             Text Inpainting
                         </button>
                         <button id="cleanupTab" 
-                                class="w-1/2 py-4 px-1 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm cursor-pointer"
+                                class="w-1/3 py-4 px-1 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm cursor-pointer"
                                 data-mode="cleanup">
                             Cleanup
+                        </button>
+                        <button id="reimagineTab" 
+                                class="w-1/3 py-4 px-1 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm cursor-pointer"
+                                data-mode="reimagine">
+                            Reimagine
                         </button>
                     </nav>
                 </div>
@@ -80,10 +88,19 @@
                     <li>Click and drag your mouse to draw around the areas you want to remove</li>
                     <li>You can make multiple selections to remove multiple areas</li>
                     <li>Use <span class="font-medium">"Clear Selection"</span> to start over</li>
-                    <li>Choose quality mode (fast or HD)</li>
                     <li>Click <span class="font-medium">"Apply Changes"</span> to remove the selected areas</li>
                 </ol>
-                <p class="mt-3 text-sm text-gray-600">Tip: HD mode gives better results but takes longer!</p>
+                <p class="mt-3 text-sm text-gray-600">Note: Always uses high-quality processing</p>
+            </div>
+
+            <div id="reimagineInstructions" class="bg-blue-50 p-4 rounded-lg mb-6 hidden">
+                <h2 class="text-lg font-semibold mb-2">Reimagine:</h2>
+                <ol class="list-decimal list-inside space-y-2 text-gray-700">
+                    <li>Describe how you want to transform the entire image</li>
+                    <li>No selection needed - affects the whole picture</li>
+                    <li>Click <span class="font-medium">"Apply Changes"</span> to reimagine</li>
+                </ol>
+                <p class="mt-3 text-sm text-gray-600">Example: "Make it cyberpunk style"</p>
             </div>
             
             <!-- Canvas container -->
@@ -105,21 +122,13 @@
 
             <!-- Edit controls -->
             <div class="space-y-4">
-                <!-- Inpainting controls -->
                 <div id="promptSection">
-                    <label for="prompt" class="block text-sm font-medium mb-2">What should appear in the selected areas?</label>
+                    <label for="prompt" class="block text-sm font-medium mb-2">
+                        <span id="promptLabel">What should appear in the selected areas?</span>
+                    </label>
                     <textarea id="prompt"
-                            placeholder="Describe what you want to appear in the selected areas..."
+                            placeholder="Describe your changes..."
                             class="w-full p-2 border rounded h-24" required></textarea>
-                </div>
-
-                <!-- Cleanup controls -->
-                <div id="cleanupSection" class="hidden">
-                    <label for="cleanupMode" class="block text-sm font-medium mb-2">Cleanup Mode</label>
-                    <select id="cleanupMode" class="w-full p-2 border rounded">
-                        <option value="fast">Fast (Default)</option>
-                        <option value="quality">Quality (HD)</option>
-                    </select>
                 </div>
 
                 <div id="error" class="p-3 bg-red-100 text-red-700 rounded hidden"></div>
@@ -143,7 +152,6 @@
         </div>
     </div>
 
-    <!-- Pass data to JavaScript -->
     <script>
         window.imageData = "{{ image_data }}";
         window.editCount = parseInt("{{ edit_count }}");
