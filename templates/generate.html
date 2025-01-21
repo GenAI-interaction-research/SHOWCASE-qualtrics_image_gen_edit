@@ -33,19 +33,6 @@
             
             <form id="generateForm" class="space-y-6">
                 <div>
-                    <label class="block text-sm font-medium mb-2">Style</label>
-                    <select id="style" class="w-full p-2 border rounded">
-                        <option value="realistic_image">Realistic Image</option>
-                        <option value="hand_drawn">Hand Drawn</option>
-                        <option value="infantile_sketch">Infantile Sketch</option>
-                        <option value="pixel_art">Pixel Art</option>
-                        <option value="expressionism">Expressionism</option>
-                        <option value="pop_art">Pop Art</option>
-                        <option value="street_art">Street Art</option>
-                    </select>
-                </div>
-
-                <div>
                     <label class="block text-sm font-medium mb-2">Prompt</label>
                     <textarea
                         id="prompt"
@@ -70,6 +57,12 @@
             <div id="result" class="mt-8 hidden">
                 <h2 class="text-lg font-medium mb-4">Generated Image</h2>
                 <img id="generatedImage" class="w-full rounded-lg shadow mb-4" alt="Generated image">
+                <button
+                    id="editButton"
+                    class="w-full bg-green-600 text-white p-3 rounded hover:bg-green-700 flex items-center justify-center mt-4"
+                >
+                    Edit Image
+                </button>
             </div>
         </div>
     </div>
@@ -80,16 +73,13 @@
         const result = document.getElementById('result');
         const generatedImage = document.getElementById('generatedImage');
         const buttonText = document.getElementById('buttonText');
+        let imageBlob = null;
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            // Hide any previous error
             error.classList.add('hidden');
-            
-            // Get form values
             const prompt = document.getElementById('prompt').value.trim();
-            const style = document.getElementById('style').value;
 
             if (!prompt) {
                 error.textContent = 'Please enter a prompt';
@@ -97,40 +87,104 @@
                 return;
             }
 
-            // Show loading state
             form.classList.add('loading');
             buttonText.textContent = 'Generating...';
             document.getElementById('spinner').style.display = 'block';
 
             try {
-                const response = await fetch('/generate-image', {
+                const response = await fetch('/generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt, style })
+                    body: JSON.stringify({ prompt: prompt })
                 });
 
-                const data = await response.json();
-                console.log('API Response:', data);
-
                 if (!response.ok) {
-                    throw new Error(data.error || response.statusText || 'Failed to generate image');
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || response.statusText || 'Failed to generate image');
                 }
 
-                if (data.success && data.image_url) {
-                    // Redirect to edit page instead of showing the image
-                    window.location.href = `/edit?url=${encodeURIComponent(data.image_url)}`;
-                } else {
-                    throw new Error(data.error || 'Failed to generate image');
+                imageBlob = await response.blob();
+                
+                const reader = new FileReader();
+                reader.readAsDataURL(imageBlob);
+                reader.onloadend = function() {
+                    generatedImage.src = reader.result;
+                    result.classList.remove('hidden');
                 }
             } catch (err) {
                 console.error('Generation error:', err);
                 error.textContent = err.message || 'An unexpected error occurred';
                 error.classList.remove('hidden');
-                document.getElementById('spinner').style.display = 'none';
             } finally {
-                // Reset loading state
                 form.classList.remove('loading');
                 buttonText.textContent = 'Generate Image';
+                document.getElementById('spinner').style.display = 'none';
+            }
+        });
+
+        document.getElementById('editButton').addEventListener('click', async () => {
+            const img = document.getElementById('generatedImage');
+            if (img.src) {
+                // Create a canvas to resize the image
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Create a new image for getting original dimensions
+                const tempImg = new Image();
+                tempImg.src = img.src;
+                
+                await new Promise(resolve => tempImg.onload = resolve);
+                
+                // Set maximum dimensions
+                const MAX_WIDTH = 800;
+                const MAX_HEIGHT = 800;
+                
+                let width = tempImg.width;
+                let height = tempImg.height;
+                
+                // Calculate new dimensions
+                if (width > height) {
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+                } else {
+                    if (height > MAX_HEIGHT) {
+                        width *= MAX_HEIGHT / height;
+                        height = MAX_HEIGHT;
+                    }
+                }
+                
+                // Set canvas dimensions
+                canvas.width = width;
+                canvas.height = height;
+                
+                // Draw image on canvas
+                ctx.drawImage(tempImg, 0, 0, width, height);
+                
+                // Get compressed base64 data
+                const compressedData = canvas.toDataURL('image/jpeg', 0.8);
+                
+                // Create and submit form
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/edit';
+
+                const imageInput = document.createElement('input');
+                imageInput.type = 'hidden';
+                imageInput.name = 'image';
+                imageInput.value = compressedData;
+                form.appendChild(imageInput);
+
+                const countInput = document.createElement('input');
+                countInput.type = 'hidden';
+                countInput.name = 'edit_count';
+                countInput.value = '1';
+                form.appendChild(countInput);
+
+                document.body.appendChild(form);
+                form.submit();
+                document.body.removeChild(form);
             }
         });
     </script>

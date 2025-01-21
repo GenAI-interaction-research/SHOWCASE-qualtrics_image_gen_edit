@@ -16,6 +16,7 @@
             border: 1px solid #ccc;
             width: 100% !important;
             height: auto !important;
+            aspect-ratio: 1;
         }
         .spinner {
             display: none;
@@ -37,29 +38,52 @@
     <div class="container mx-auto px-4 py-8">
         <div class="max-w-4xl mx-auto bg-white rounded-lg shadow p-6">
             <div class="flex justify-between items-center mb-6">
-                <h1 class="text-2xl font-bold">
-                    {% if edit_count <= 3 %}
-                        Edit {{ edit_count }}
-                    {% else %}
-                        Edit #{{ edit_count }}
-                    {% endif %}
-                </h1>
-                <span id="editCount" class="hidden">{{ edit_count }}</span>
+                <h1 class="text-2xl font-bold">Edit {{ edit_count }}</h1>
+            </div>
+            
+            <!-- Mode Selection Tabs -->
+            <div class="mb-6">
+                <div class="border-b border-gray-200">
+                    <nav class="-mb-px flex" aria-label="Tabs">
+                        <button id="inpaintTab" 
+                                class="w-1/2 py-4 px-1 text-center border-b-2 border-blue-500 text-blue-600 font-medium text-sm cursor-pointer"
+                                data-mode="inpaint">
+                            Text Inpainting
+                        </button>
+                        <button id="cleanupTab" 
+                                class="w-1/2 py-4 px-1 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm cursor-pointer"
+                                data-mode="cleanup">
+                            Cleanup
+                        </button>
+                    </nav>
+                </div>
             </div>
             
             <!-- Instructions -->
-            <div class="bg-blue-50 p-4 rounded-lg mb-6">
-                <h2 class="text-lg font-semibold mb-2">How to Edit the Image:</h2>
+            <div id="inpaintInstructions" class="bg-blue-50 p-4 rounded-lg mb-6">
+                <h2 class="text-lg font-semibold mb-2">Text Inpainting:</h2>
                 <ol class="list-decimal list-inside space-y-2 text-gray-700">
-                    <li>Click <span class="font-medium">"Draw Selection Circle"</span> to start selecting an area</li>
-                    <li>Click and drag your mouse to draw around the area you want to edit</li>
-                    <li>You can make multiple selections - each area will be included in the edit</li>
-                    <li>Use <span class="font-medium">"Clear Selection"</span> to remove all selections and start over</li>
-                    <li>Type your edit instructions in the prompt box below</li>
-                    <li>Choose a style for your edit</li>
+                    <li>Click <span class="font-medium">"Draw Selection"</span> to start selecting an area</li>
+                    <li>Click and drag your mouse to draw around the area you want to modify</li>
+                    <li>You can make multiple selections - each area will be included</li>
+                    <li>Use <span class="font-medium">"Clear Selection"</span> to remove all selections</li>
+                    <li>Type what you want to appear in the selected areas</li>
                     <li>Click <span class="font-medium">"Apply Changes"</span> to modify the selected areas</li>
                 </ol>
-                <p class="mt-3 text-sm text-gray-600">Tip: You can be as precise as you want with your selection - the dashed line will follow your mouse exactly!</p>
+                <p class="mt-3 text-sm text-gray-600">Tip: Be as specific as possible in your text prompt!</p>
+            </div>
+
+            <div id="cleanupInstructions" class="bg-blue-50 p-4 rounded-lg mb-6 hidden">
+                <h2 class="text-lg font-semibold mb-2">Cleanup:</h2>
+                <ol class="list-decimal list-inside space-y-2 text-gray-700">
+                    <li>Click <span class="font-medium">"Draw Selection"</span> to start selecting an area</li>
+                    <li>Click and drag your mouse to draw around the areas you want to remove</li>
+                    <li>You can make multiple selections to remove multiple areas</li>
+                    <li>Use <span class="font-medium">"Clear Selection"</span> to start over</li>
+                    <li>Choose quality mode (fast or HD)</li>
+                    <li>Click <span class="font-medium">"Apply Changes"</span> to remove the selected areas</li>
+                </ol>
+                <p class="mt-3 text-sm text-gray-600">Tip: HD mode gives better results but takes longer!</p>
             </div>
             
             <!-- Canvas container -->
@@ -81,25 +105,21 @@
 
             <!-- Edit controls -->
             <div class="space-y-4">
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label for="style" class="block text-sm font-medium mb-2">Style</label>
-                        <select id="style" class="w-full p-2 border rounded">
-                            <option value="realistic_image">Realistic Image</option>
-                            <option value="hand_drawn">Hand Drawn</option>
-                            <option value="infantile_sketch">Infantile Sketch</option>
-                            <option value="pixel_art">Pixel Art</option>
-                            <option value="expressionism">Expressionism</option>
-                            <option value="pop_art">Pop Art</option>
-                            <option value="street_art">Street Art</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="prompt" class="block text-sm font-medium mb-2">Edit Prompt</label>
-                        <textarea id="prompt"
-                                placeholder="Describe changes to the selected area..."
-                                class="w-full p-2 border rounded h-24" required></textarea>
-                    </div>
+                <!-- Inpainting controls -->
+                <div id="promptSection">
+                    <label for="prompt" class="block text-sm font-medium mb-2">What should appear in the selected areas?</label>
+                    <textarea id="prompt"
+                            placeholder="Describe what you want to appear in the selected areas..."
+                            class="w-full p-2 border rounded h-24" required></textarea>
+                </div>
+
+                <!-- Cleanup controls -->
+                <div id="cleanupSection" class="hidden">
+                    <label for="cleanupMode" class="block text-sm font-medium mb-2">Cleanup Mode</label>
+                    <select id="cleanupMode" class="w-full p-2 border rounded">
+                        <option value="fast">Fast (Default)</option>
+                        <option value="quality">Quality (HD)</option>
+                    </select>
                 </div>
 
                 <div id="error" class="p-3 bg-red-100 text-red-700 rounded hidden"></div>
@@ -110,20 +130,9 @@
                     <button id="applyEditButton" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
                         Apply Changes
                     </button>
-                    {% if edit_count > 1 %}
-                    <button id="undoButton" class="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700">
-                        Undo Last Edit
-                    </button>
-                    {% endif %}
                     <a href="/generate" class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700">
-                        Start All Over Again<br>
-                        <span class="text-xs">(brings you back to initial generation page)</span>
+                        Start Over
                     </a>
-                    {% if edit_count > 3 %}
-                    <a href="#" id="qualtricsButton" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-center">
-                        Return to Survey
-                    </a>
-                    {% endif %}
                 </div>
             </div>
 
@@ -134,11 +143,10 @@
         </div>
     </div>
 
+    <!-- Pass data to JavaScript -->
     <script>
-        window.originalImageUrl = "{{ image_url }}";
+        window.imageData = "{{ image_data }}";
         window.editCount = parseInt("{{ edit_count }}");
-        window.prolificId = "{{ prolific_id }}";
-        window.previousImageUrl = "{{ request.args.get('previous_url', '') }}";
     </script>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>

@@ -1,79 +1,58 @@
 from flask import Flask, request, jsonify, render_template, Response
 from flask_cors import CORS
 import logging
-from openai import OpenAI
-import os
-from dotenv import load_dotenv
 from PIL import Image
 from io import BytesIO
 import requests
 import requests.exceptions
 import time
+import os
+import base64
+from dotenv import load_dotenv
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def ensure_grayscale_png(file_stream):
+    """Convert mask to black and white PNG with no grey pixels"""
     img = Image.open(file_stream)
+    
+    # Convert to grayscale
     grayscale = img.convert('L')
+    
+    # Convert to pure black and white (no grey)
+    threshold = 128  # Middle value between 0 and 255
+    binary = grayscale.point(lambda x: 0 if x < threshold else 255, '1')
+    
+    # Convert back to RGB mode with only black and white values
+    binary = binary.convert('RGB')
+    
     output = BytesIO()
-    grayscale.save(output, format='PNG')
+    binary.save(output, format='PNG')
     output.seek(0)
     return output
-
-def get_style_params(selected_style):
-    """Convert selected style to API style and substyle parameters"""
-    # List of all substyles that belong to digital_illustration
-    digital_illustration_substyles = {
-        'hand_drawn', 'infantile_sketch', 'pixel_art', 
-        'expressionism', 'pop_art', 'street_art'
-    }
-    
-    if selected_style in digital_illustration_substyles:
-        return {
-            'style': 'digital_illustration',
-            'substyle': selected_style
-        }
-    else:
-        return {
-            'style': selected_style,
-            'substyle': None
-        }
 
 def create_app():
     # Load environment variables
     load_dotenv()
     app = Flask(__name__, static_url_path='', static_folder='static')
-
-    # Configure CORS with more permissive settings
-    CORS(app, resources={
-        r"/*": {
-            "origins": "*",
-            "methods": ["GET", "POST", "OPTIONS"],
-            "allow_headers": ["Content-Type"]
-        }
-    })
-
-    # Setup Recraft client
-    RECRAFT_API_TOKEN = os.getenv('RECRAFT_API_TOKEN')
-    if not RECRAFT_API_TOKEN:
-        logger.error("No Recraft API token found")
-        raise ValueError("RECRAFT_API_TOKEN environment variable is required")
     
-    # Log token details (safely)
-    logger.info(f"API Token details:")
-    logger.info(f"- Length: {len(RECRAFT_API_TOKEN)}")
-    logger.info(f"- First 4 chars: {RECRAFT_API_TOKEN[:4]}***")
-    logger.info(f"- Environment variables: {list(os.environ.keys())}")
+    # Configure max content length (16MB)
+    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
     
-    recraft_client = OpenAI(
-        api_key=RECRAFT_API_TOKEN,
-        base_url='https://external.api.recraft.ai/v1',
-        max_retries=3,
-        timeout=30.0
-    )
-    logger.info("Recraft client initialized successfully")
+    # Configure request size limit
+    app.wsgi_app = ProxyFix(app.wsgi_app)
+
+    # Configure CORS
+    CORS(app)
+
+    # Setup Clipdrop API
+    CLIPDROP_API_KEY = os.getenv('CLIPDROP_API_KEY')
+    if not CLIPDROP_API_KEY:
+        logger.error("No Clipdrop API key found")
+        raise ValueError("CLIPDROP_API_KEY environment variable is required")
 
     # Root route
     @app.route('/')
@@ -81,241 +60,133 @@ def create_app():
         return render_template('generate.html')
 
     # Generation routes
-    @app.route('/generate')
-    def generate_page():
-        return render_template('generate.html')
-
     @app.route('/generate', methods=['POST'])
     def generate():
         try:
             data = request.get_json()
             prompt = data.get('prompt')
-            selected_style = data.get('style', 'realistic_image')
 
             if not prompt:
                 return jsonify({'success': False, 'error': 'No prompt provided'}), 400
 
-            style_params = get_style_params(selected_style)
-            
-            # Prepare the request body
-            body = {
-                'prompt': prompt,
-                'style': style_params['style']
-            }
-            
-            # Add substyle if it exists
-            if style_params['substyle']:
-                body['extra_body'] = {'substyle': style_params['substyle']}
-
-            logger.info(f"Generating image with prompt: {prompt}")
-            
-            response = requests.post(
-                'https://external.api.recraft.ai/v1/images/generate',
-                headers={'Authorization': f'Bearer {RECRAFT_API_TOKEN}'},
-                json=body
-            )
-            
-            response.raise_for_status()
-            result = response.json()
-            
-            image_url = result['data'][0]['url']
-            logger.info(f"Image generated successfully: {image_url}")
-            
-            return jsonify({
-                'success': True,
-                'image_url': image_url
-            })
-        except Exception as e:
-            logger.error(f"Server Error: {str(e)}")
-            return jsonify({'success': False, 'error': f'Server error: {str(e)}'}), 500
-
-    @app.route('/generate-image', methods=['POST'])
-    def generate_image():
-        try:
-            logger.info("Received generate-image request")
-            
-            data = request.get_json()
-            logger.info(f"Request data: {data}")
-            
-            if not data or 'prompt' not in data:
-                logger.error("No prompt provided in request")
-                return jsonify({'success': False, 'error': 'No prompt provided'}), 400
-            
-            prompt = data['prompt']
-            selected_style = data.get('style', 'realistic_image')
-            
-            # Get style parameters
-            style_params = get_style_params(selected_style)
-            
             try:
-                # If we have a substyle, include it in the generation
-                if style_params['substyle']:
-                    response = recraft_client.images.generate(
-                        prompt=prompt,
-                        style=style_params['style'],
-                        extra_body={'substyle': style_params['substyle']}
-                    )
-                else:
-                    response = recraft_client.images.generate(
-                        prompt=prompt,
-                        style=style_params['style']
-                    )
+                response = requests.post(
+                    'https://clipdrop-api.co/text-to-image/v1',
+                    files={'prompt': (None, prompt, 'text/plain')},
+                    headers={'x-api-key': CLIPDROP_API_KEY}
+                )
                 
-                if not response.data:
-                    logger.error("No image data in response")
-                    return jsonify({'success': False, 'error': 'No image data in API response'}), 500
-                    
-                image_url = response.data[0].url
-                logger.info(f"Image generated successfully: {image_url}")
-                
-                return jsonify({
-                    'success': True,
-                    'image_url': image_url
-                })
-                
-            except Exception as e:
-                logger.error(f"API Error: {str(e)}")
-                return jsonify({'success': False, 'error': f'API error: {str(e)}'}), 500
-                
-        except Exception as e:
-            logger.error(f"Server Error: {str(e)}")
-            return jsonify({'success': False, 'error': f'Server error: {str(e)}'}), 500
+                if not response.ok:
+                    response.raise_for_status()
 
-    # Editing routes
-    @app.route('/edit')
-    def edit_page():
-        image_url = request.args.get('url')
-        edit_count = request.args.get('count', '1')  # Default to 1 if not provided
-        prolific_id = request.args.get('PROLIFIC_PID', '')  # Get Prolific ID from URL
-        previous_url = request.args.get('previous_url', '')
-
-        if not image_url:
-            return "No image URL provided", 400
-            
-        return render_template('edit.html', 
-                             image_url=image_url, 
-                             edit_count=int(edit_count),
-                             prolific_id=prolific_id,
-                             previous_url=previous_url)
-
-    @app.route('/proxy-image', methods=['GET'])
-    def proxy_image():
-        image_url = request.args.get('url')
-        if not image_url:
-            return jsonify({'error': 'No URL provided'}), 400
-
-        try:
-            response = requests.get(image_url, stream=True)
-            response.raise_for_status()
-
-            # Convert to PNG using Pillow
-            img_data = BytesIO(response.content)
-            with Image.open(img_data) as img:
-                output = BytesIO()
-                img.save(output, format='PNG')
-                output.seek(0)
                 return Response(
-                    output.getvalue(),
+                    response.content,
                     mimetype='image/png'
                 )
+
+            except requests.exceptions.RequestException as e:
+                error_message = f"Error making request to Clipdrop API: {str(e)}"
+                logger.error(error_message)
+                return jsonify({'success': False, 'error': error_message}), 500
+
         except Exception as e:
-            logger.error(f"Error proxying image: {str(e)}")
-            return jsonify({'error': str(e)}), 500
+            error_message = f"Server error: {str(e)}"
+            logger.error(error_message)
+            return jsonify({'success': False, 'error': error_message}), 500
+
+    @app.route('/edit', methods=['GET', 'POST'])
+    def edit():
+        if request.method == 'POST':
+            image_data = request.form.get('image')
+            edit_count = request.form.get('edit_count', 1)
+            return render_template('edit.html', image_data=image_data, edit_count=edit_count)
+        else:
+            return "No image provided", 400
 
     @app.route('/direct-modification', methods=['POST'])
     def direct_modification():
         try:
-            # Get the files and prompt from the request
-            image_file = request.files.get('image')
+            # Get image data and convert from base64
+            image_data = request.form.get('image')
+            if not image_data:
+                return jsonify({'success': False, 'error': 'No image data provided'}), 400
+            
+            # Remove base64 prefix if present
+            if ',' in image_data:
+                image_data = image_data.split(',')[1]
+            
+            # Convert base64 to bytes
+            image_bytes = BytesIO(base64.b64decode(image_data))
+            
+            # Get mask file and mode
             mask_file = request.files.get('mask')
-            prompt = request.form.get('prompt')
-            selected_style = request.form.get('style', 'realistic_image')  # Default to realistic if not specified
-
-            if not all([image_file, mask_file, prompt]):
+            mode = request.form.get('mode', 'inpaint')  # 'inpaint' or 'cleanup'
+            
+            if not all([image_bytes, mask_file]):
                 return jsonify({'success': False, 'error': 'Missing required fields'}), 400
 
-            # Convert mask to proper grayscale PNG
+            # Convert mask to proper format
             mask_grayscale = ensure_grayscale_png(mask_file)
-            
-            # Convert image to PNG
-            with Image.open(image_file) as img:
-                image_output = BytesIO()
-                img.save(image_output, format='PNG')
-                image_output.seek(0)
 
             try:
-                style_params = get_style_params(selected_style)
-                
-                # Prepare the body with style parameters
-                body = {
-                    'prompt': prompt,
-                    'style': style_params['style']
-                }
-                
-                # Add substyle if it exists
-                if style_params['substyle']:
-                    body['extra_body'] = {'substyle': style_params['substyle']}
+                if mode == 'cleanup':
+                    # Handle cleanup request
+                    cleanup_mode = request.form.get('cleanup_mode', 'fast')  # 'fast' or 'quality'
+                    response = requests.post(
+                        'https://clipdrop-api.co/cleanup/v1',
+                        files={
+                            'image_file': ('image.jpg', image_bytes, 'image/jpeg'),
+                            'mask_file': ('mask.png', mask_grayscale, 'image/png')
+                        },
+                        data={
+                            'mode': cleanup_mode
+                        },
+                        headers={
+                            'x-api-key': CLIPDROP_API_KEY
+                        }
+                    )
+                    response_mime = 'image/png'
+                else:
+                    # Handle inpainting request
+                    text_prompt = request.form.get('prompt')
+                    if not text_prompt:
+                        return jsonify({'success': False, 'error': 'Text prompt required for inpainting'}), 400
+                        
+                    response = requests.post(
+                        'https://clipdrop-api.co/text-inpainting/v1',
+                        files={
+                            'image_file': ('image.jpg', image_bytes, 'image/jpeg'),
+                            'mask_file': ('mask.png', mask_grayscale, 'image/png')
+                        },
+                        data={
+                            'text_prompt': text_prompt
+                        },
+                        headers={
+                            'x-api-key': CLIPDROP_API_KEY
+                        }
+                    )
+                    response_mime = 'image/jpeg'
 
-                files = {
-                    'image': ('image.png', image_output, 'image/png'),
-                    'mask': ('mask.png', mask_grayscale, 'image/png')
-                }
+                if not response.ok:
+                    response.raise_for_status()
 
-                response = requests.post(
-                    'https://external.api.recraft.ai/v1/images/inpaint',
-                    headers={'Authorization': f'Bearer {RECRAFT_API_TOKEN}'},
-                    files=files,
-                    data=body  # Use data for form fields
+                return Response(
+                    response.content,
+                    mimetype=response_mime,
+                    headers={
+                        'x-remaining-credits': response.headers.get('x-remaining-credits', ''),
+                        'x-credits-consumed': response.headers.get('x-credits-consumed', '')
+                    }
                 )
-                
-                response.raise_for_status()
-                result = response.json()
-                
-                edited_image_url = result['data'][0]['url']
-                logger.info(f"Image edited successfully: {edited_image_url}")
-                
-                return jsonify({
-                    'success': True,
-                    'image_url': edited_image_url
-                })
-            except Exception as e:
-                logger.error(f"Error during API request: {str(e)}")
-                return jsonify({'success': False, 'error': f'API request failed: {str(e)}'})
+
+            except requests.exceptions.RequestException as e:
+                error_message = f"Error making request to Clipdrop API: {str(e)}"
+                logger.error(error_message)
+                return jsonify({'success': False, 'error': error_message}), 500
+
         except Exception as e:
             logger.error(f"Error in direct modification: {str(e)}")
             return jsonify({'success': False, 'error': str(e)})
-
-    @app.route('/health')
-    def health_check():
-        try:
-            # Test connection to Recraft API
-            response = requests.get('https://external.api.recraft.ai/v1/health',
-                                 headers={'Authorization': f'Bearer {RECRAFT_API_TOKEN}'},
-                                 timeout=10)
-            logger.info(f"Health check response status: {response.status_code}")
-            return jsonify({
-                'status': 'healthy',
-                'recraft_api': 'connected' if response.status_code == 200 else 'error',
-                'recraft_status_code': response.status_code
-            })
-        except requests.exceptions.ConnectionError as e:
-            logger.error(f"Health check connection error: {str(e)}")
-            return jsonify({
-                'status': 'unhealthy',
-                'error': f'Connection error: {str(e)}'
-            }), 503
-        except requests.exceptions.Timeout as e:
-            logger.error(f"Health check timeout: {str(e)}")
-            return jsonify({
-                'status': 'unhealthy',
-                'error': f'Timeout: {str(e)}'
-            }), 504
-        except Exception as e:
-            logger.error(f"Health check failed: {str(e)}")
-            return jsonify({
-                'status': 'unhealthy',
-                'error': str(e)
-            }), 500
 
     return app
 
