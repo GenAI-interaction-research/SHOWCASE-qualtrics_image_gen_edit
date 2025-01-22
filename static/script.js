@@ -9,13 +9,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const containerWidth = Math.min(container.clientWidth, 800);
     paper.view.viewSize = new paper.Size(containerWidth, containerWidth);
 
-    // Initialize UI elements early
+    // Initialize UI elements
     const spinner = document.getElementById('spinner');
     const errorDiv = document.getElementById('error');
     if (spinner) spinner.style.display = 'none';
     if (errorDiv) errorDiv.classList.add('hidden');
 
     try {
+        // Initialize image
         const img = new Image();
         img.onload = function() {
             raster = new paper.Raster(img);
@@ -25,6 +26,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
         img.src = window.imageData;
 
+        // Setup drawing tool
         const tool = new paper.Tool();
         tool.onMouseDown = (event) => {
             if (!isDrawing) {
@@ -51,20 +53,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         };
 
-        // Safe element initialization
-        const initializeEventListener = (id, eventType, callback) => {
-            const element = document.getElementById(id);
-            if (element) {
-                element.addEventListener(eventType, callback);
-            } else {
-                console.error(`Element ${id} not found for event ${eventType}`);
-            }
+        // Initialize event listeners
+        const initListener = (id, event, fn) => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener(event, fn);
+            else console.error(`Element ${id} not found`);
         };
 
-        initializeEventListener('lassoButton', 'click', toggleDrawing);
-        initializeEventListener('clearButton', 'click', clearSelection);
-        initializeEventListener('applyEditButton', 'click', submitEdit);
+        initListener('lassoButton', 'click', toggleDrawing);
+        initListener('clearButton', 'click', clearSelection);
+        initListener('applyEditButton', 'click', submitEdit);
 
+        // Tab management
         const tabs = document.querySelectorAll('[data-mode]');
         const sections = {
             prompt: document.getElementById('promptSection'),
@@ -76,57 +76,73 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         };
 
+        // Activate initial tab from server
+        const initialMode = "{{ mode|default('inpaint') }}";
+        let activeTab = document.querySelector(`[data-mode="${initialMode}"]`);
+        if (!activeTab) activeTab = document.querySelector('[data-mode]');
+        if (activeTab) activateTab(activeTab);
+
+        // Tab click handler
         tabs.forEach(tab => {
             tab.addEventListener('click', () => {
-                tabs.forEach(t => {
-                    t.classList.remove('border-blue-500', 'text-blue-600');
-                    t.classList.add('border-transparent', 'text-gray-500');
-                });
-
-                tab.classList.remove('border-transparent', 'text-gray-500');
-                tab.classList.add('border-blue-500', 'text-blue-600');
-
-                const mode = tab.dataset.mode;
-                const isReimagine = mode === 'reimagine';
-                const isReplaceBg = mode === 'replacebg';
-                
-                // Update button text
-                const applyButton = document.getElementById('applyEditButton');
-                if (applyButton) {
-                    const buttonTexts = {
-                        'inpaint': 'Add changes',
-                        'cleanup': 'Remove parts',
-                        'replacebg': 'Change background',
-                        'reimagine': 'Reimagine image'
-                    };
-                    applyButton.textContent = buttonTexts[mode] || 'Apply Changes';
+                activateTab(tab);
+                if (tab.dataset.mode === 'reimagine') {
+                    document.getElementById('prompt').value = '';
                 }
-                
-                // Toggle visibility
-                const lassoButton = document.getElementById('lassoButton');
-                const clearButton = document.getElementById('clearButton');
-                if (lassoButton) lassoButton.classList.toggle('hidden', isReimagine || isReplaceBg);
-                if (clearButton) clearButton.classList.toggle('hidden', isReimagine || isReplaceBg);
-
-                // Toggle prompt section
-                if (sections.prompt) {
-                    sections.prompt.classList.toggle('hidden', !['inpaint', 'replacebg'].includes(mode));
-                }
-
-                // Update prompt label
-                const promptLabel = document.getElementById('promptLabel');
-                if (promptLabel) {
-                    promptLabel.textContent = mode === 'replacebg' 
-                        ? 'What should the new background be?' 
-                        : 'What should appear in the selected areas?';
-                }
-
-                // Toggle instructions
-                Object.entries(sections.instructions).forEach(([key, element]) => {
-                    if (element) element.classList.toggle('hidden', mode !== key);
-                });
             });
         });
+
+        function activateTab(tab) {
+            tabs.forEach(t => {
+                t.classList.remove('border-blue-500', 'text-blue-600');
+                t.classList.add('border-transparent', 'text-gray-500');
+            });
+
+            tab.classList.remove('border-transparent', 'text-gray-500');
+            tab.classList.add('border-blue-500', 'text-blue-600');
+
+            const mode = tab.dataset.mode;
+            updateUIForMode(mode);
+        }
+
+        function updateUIForMode(mode) {
+            const isReimagine = mode === 'reimagine';
+            const isReplaceBg = mode === 'replacebg';
+            
+            // Update main button text
+            const buttonTexts = {
+                'inpaint': 'Add changes',
+                'cleanup': 'Remove parts',
+                'replacebg': 'Change background',
+                'reimagine': 'Reimagine image'
+            };
+            const applyButton = document.getElementById('applyEditButton');
+            if (applyButton) applyButton.textContent = buttonTexts[mode] || 'Apply Changes';
+            
+            // Toggle tools
+            const lassoButton = document.getElementById('lassoButton');
+            const clearButton = document.getElementById('clearButton');
+            if (lassoButton) lassoButton.classList.toggle('hidden', isReimagine || isReplaceBg);
+            if (clearButton) clearButton.classList.toggle('hidden', isReimagine || isReplaceBg);
+
+            // Toggle prompt section
+            if (sections.prompt) {
+                sections.prompt.classList.toggle('hidden', !['inpaint', 'replacebg'].includes(mode));
+            }
+
+            // Update prompt label
+            const promptLabel = document.getElementById('promptLabel');
+            if (promptLabel) {
+                promptLabel.textContent = mode === 'replacebg' 
+                    ? 'What should the new background be?' 
+                    : 'What should appear in the selected areas?';
+            }
+
+            // Toggle instructions
+            Object.entries(sections.instructions).forEach(([key, element]) => {
+                if (element) element.classList.toggle('hidden', mode !== key);
+            });
+        }
 
     } catch (error) {
         console.error('Initialization error:', error);
@@ -138,14 +154,14 @@ function toggleDrawing() {
     const button = document.getElementById('lassoButton');
     if (!button) return;
 
+    isDrawing = !isDrawing;
     if (isDrawing) {
-        isDrawing = false;
-        if (path) path.closed = true;
-        button.textContent = 'Draw Selection';
-        button.classList.replace('bg-green-600', 'bg-blue-600');
-    } else {
         button.textContent = 'Finish Selection';
         button.classList.replace('bg-blue-600', 'bg-green-600');
+    } else {
+        button.textContent = 'Draw Selection';
+        button.classList.replace('bg-green-600', 'bg-blue-600');
+        if (path) path.closed = true;
     }
 }
 
@@ -182,14 +198,13 @@ async function createMaskFromCanvas() {
         });
     }
 
+    // Binarize mask
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const data = imageData.data;
     for (let i = 0; i < data.length; i += 4) {
         const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
         const value = avg > 127 ? 255 : 0;
-        data[i] = value;
-        data[i + 1] = value;
-        data[i + 2] = value;
+        data[i] = data[i + 1] = data[i + 2] = value;
         data[i + 3] = 255;
     }
     
@@ -207,25 +222,23 @@ async function submitEdit() {
     const errorDiv = document.getElementById('error');
     const spinner = document.getElementById('spinner');
     
-    // Validate critical elements
+    // Validate elements
     if (!form || !promptInput || !button || !errorDiv || !spinner) {
-        console.error('Missing critical UI elements');
+        console.error('Missing critical UI components');
         return;
     }
 
     try {
-        // Input validation
+        // Get current mode
+        const activeTab = document.querySelector('[data-mode].border-blue-500');
+        if (!activeTab) throw new Error('No editing mode selected');
+        const mode = activeTab.dataset.mode;
+
+        // Validate inputs
         if (promptInput.value.length > 1000) {
             promptInput.value = promptInput.value.substring(0, 1000);
         }
 
-        const activeTab = document.querySelector('[data-mode].border-blue-500');
-        if (!activeTab) {
-            throw new Error('No editing mode selected');
-        }
-        const mode = activeTab.dataset.mode;
-
-        // Mode-specific validation
         if (['inpaint', 'replacebg'].includes(mode)) {
             const prompt = promptInput.value.trim();
             if (!prompt) {
@@ -254,16 +267,16 @@ async function submitEdit() {
 
         if (mode === 'replacebg') {
             formData.append('prompt', promptInput.value.trim());
-        } else if (mode !== 'reimagine') {
+        } else if (mode === 'inpaint') {
             const maskBlob = await createMaskFromCanvas();
             formData.append('mask', maskBlob);
-            
-            if (mode === 'inpaint') {
-                formData.append('prompt', promptInput.value.trim());
-            }
+            formData.append('prompt', promptInput.value.trim());
+        } else if (mode === 'cleanup') {
+            const maskBlob = await createMaskFromCanvas();
+            formData.append('mask', maskBlob);
         }
 
-        // API call
+        // Submit request
         const response = await fetch('/direct-modification', {
             method: 'POST',
             body: formData
@@ -278,7 +291,7 @@ async function submitEdit() {
         const editedBlob = await response.blob();
         const compressedBase64 = await compressImage(editedBlob, 800, 0.8);
 
-        // Create submission form (renamed variable to avoid conflict)
+        // Create submission form
         const submissionForm = document.createElement('form');
         submissionForm.method = 'POST';
         submissionForm.action = '/edit';
@@ -286,6 +299,7 @@ async function submitEdit() {
             <input type="hidden" name="image" value="${compressedBase64}">
             <input type="hidden" name="edit_count" value="${window.editCount + 1}">
             <input type="hidden" name="style" value="${window.initialStyle}">
+            <input type="hidden" name="mode" value="${mode}">
         `;
         document.body.appendChild(submissionForm);
         submissionForm.submit();
@@ -316,6 +330,7 @@ async function submitEdit() {
     }
 }
 
+// Utility functions
 function loadImage(src) {
     return new Promise(resolve => {
         const img = new Image();

@@ -97,10 +97,12 @@ def create_app():
         image_data = request.form.get('image')
         edit_count = request.form.get('edit_count', 1)
         style = request.form.get('style', '')
+        mode = request.form.get('mode', 'inpaint')  # Get current mode from form
         return render_template('edit.html', 
                              image_data=image_data,
                              edit_count=edit_count,
-                             style=style)
+                             style=style,
+                             mode=mode)  # Pass mode to template
 
     @app.route('/direct-modification', methods=['POST'])
     def direct_modification():
