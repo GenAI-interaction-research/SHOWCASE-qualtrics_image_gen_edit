@@ -1,3 +1,4 @@
+# main.py
 from flask import Flask, request, jsonify, render_template, Response
 from flask_cors import CORS
 import logging
@@ -12,6 +13,32 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Style prompts
+STYLE_PROMPTS = {
+    "realistic": "hyper-realistic, 8k resolution, detailed textures, realistic lighting, photorealistic",
+    "cyberpunk": "cyberpunk style, neon lights, futuristic cityscape, rain effects, cinematic lighting",
+    "oilpainting": "oil painting texture, brush strokes visible, classical art style, canvas texture",
+    "anime": "anime style, vibrant colors, cel-shaded, studio ghibli aesthetic",
+    "digitalart": "concept art, digital painting, trending on artstation, sharp details",
+    "pixelart": "pixel art, 8-bit style, retro gaming aesthetics, low resolution"
+}
+
+def build_full_prompt(user_prompt, style=None):
+    """Combine user prompt with style prompts"""
+    base_prompt = user_prompt.strip().rstrip(',. ')
+    style_prompt = STYLE_PROMPTS.get(style, '')
+    
+    components = []
+    if base_prompt:
+        components.append(base_prompt)
+    if style_prompt:
+        components.append(style_prompt)
+    
+    components.append("high quality, professional, detailed")
+    
+    full_prompt = ', '.join(components)
+    return full_prompt[:1000]  # Ensure it doesn't exceed 1000 characters
 
 def ensure_grayscale_png(file_stream):
     """Convert mask to black and white PNG"""
@@ -45,13 +72,17 @@ def create_app():
     def generate():
         try:
             data = request.get_json()
-            prompt = data.get('prompt')
-            if not prompt:
+            user_prompt = data.get('prompt')
+            style = data.get('style', '')
+            
+            if not user_prompt:
                 return jsonify({'success': False, 'error': 'No prompt provided'}), 400
 
+            full_prompt = build_full_prompt(user_prompt, style if style else None)
+            
             response = requests.post(
                 'https://clipdrop-api.co/text-to-image/v1',
-                files={'prompt': (None, prompt)},
+                files={'prompt': (None, full_prompt)},
                 headers={'x-api-key': CLIPDROP_API_KEY}
             )
             response.raise_for_status()
@@ -65,15 +96,18 @@ def create_app():
     def edit():
         image_data = request.form.get('image')
         edit_count = request.form.get('edit_count', 1)
+        style = request.form.get('style', '')
         return render_template('edit.html', 
                              image_data=image_data,
-                             edit_count=edit_count)
+                             edit_count=edit_count,
+                             style=style)
 
     @app.route('/direct-modification', methods=['POST'])
     def direct_modification():
         try:
-            # Common image handling
             image_data = request.form.get('image')
+            style = request.form.get('style', '')
+            
             if not image_data:
                 return jsonify({'success': False, 'error': 'No image data'}), 400
             
@@ -83,17 +117,35 @@ def create_app():
             image_bytes = BytesIO(base64.b64decode(image_data))
             mode = request.form.get('mode', 'inpaint')
 
-            # Route based on operation type
-            if mode == 'cleanup':
+            if mode == 'replacebg':
+                return handle_replace_background(image_bytes, style)
+            elif mode == 'cleanup':
                 return handle_cleanup(image_bytes)
             elif mode == 'reimagine':
                 return handle_reimagine(image_bytes)
-            else:  # Default to inpainting
-                return handle_inpainting(image_bytes)
+            else:
+                return handle_inpainting(image_bytes, style)
 
         except Exception as e:
             logger.error(f"Processing error: {str(e)}")
             return jsonify({'success': False, 'error': str(e)}), 500
+
+    def handle_replace_background(image_bytes, style):
+        """Handle background replacement requests"""
+        user_prompt = request.form.get('prompt')
+        if not user_prompt:
+            return jsonify({'success': False, 'error': 'Missing background description'}), 400
+
+        full_prompt = build_full_prompt(user_prompt, style)
+
+        response = requests.post(
+            'https://clipdrop-api.co/replace-background/v1',
+            files={'image_file': ('image.jpg', image_bytes, 'image/jpeg')},
+            data={'prompt': full_prompt},
+            headers={'x-api-key': CLIPDROP_API_KEY}
+        )
+        response.raise_for_status()
+        return Response(response.content, mimetype='image/png')
 
     def handle_cleanup(image_bytes):
         mask_file = request.files.get('mask')
@@ -114,7 +166,6 @@ def create_app():
         return Response(response.content, mimetype='image/png')
 
     def handle_reimagine(image_bytes):
-        """Reimagine endpoint implementation (no prompt needed)"""
         response = requests.post(
             'https://clipdrop-api.co/reimagine/v1/reimagine',
             files={'image_file': ('image.jpg', image_bytes, 'image/jpeg')},
@@ -123,20 +174,22 @@ def create_app():
         response.raise_for_status()
         return Response(response.content, mimetype='image/png')
 
-    def handle_inpainting(image_bytes):
+    def handle_inpainting(image_bytes, style):
         mask_file = request.files.get('mask')
-        prompt = request.form.get('prompt')
-        if not all([mask_file, prompt]):
+        user_prompt = request.form.get('prompt')
+        if not all([mask_file, user_prompt]):
             return jsonify({'success': False, 'error': 'Missing data'}), 400
 
+        full_prompt = build_full_prompt(user_prompt, style)
         mask = ensure_grayscale_png(mask_file)
+
         response = requests.post(
             'https://clipdrop-api.co/text-inpainting/v1',
             files={
                 'image_file': ('image.jpg', image_bytes, 'image/jpeg'),
                 'mask_file': ('mask.png', mask, 'image/png')
             },
-            data={'text_prompt': prompt},
+            data={'text_prompt': full_prompt},
             headers={'x-api-key': CLIPDROP_API_KEY}
         )
         response.raise_for_status()

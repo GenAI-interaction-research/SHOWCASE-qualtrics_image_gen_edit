@@ -18,6 +18,10 @@
             height: auto !important;
             aspect-ratio: 1;
         }
+        .loading {
+            opacity: 0.5;
+            pointer-events: none;
+        }
         .spinner {
             display: none;
             width: 40px;
@@ -35,6 +39,7 @@
         .hidden {
             display: none !important;
         }
+        .tab-width { width: 25%; }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -49,19 +54,24 @@
                 <div class="border-b border-gray-200">
                     <nav class="-mb-px flex" aria-label="Tabs">
                         <button id="inpaintTab" 
-                                class="w-1/3 py-4 px-1 text-center border-b-2 border-blue-500 text-blue-600 font-medium text-sm cursor-pointer"
+                                class="tab-width py-4 px-1 text-center border-b-2 border-blue-500 text-blue-600 font-medium text-sm cursor-pointer"
                                 data-mode="inpaint">
                             Text Inpainting
                         </button>
                         <button id="cleanupTab" 
-                                class="w-1/3 py-4 px-1 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm cursor-pointer"
+                                class="tab-width py-4 px-1 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm cursor-pointer"
                                 data-mode="cleanup">
                             Cleanup
                         </button>
                         <button id="reimagineTab" 
-                                class="w-1/3 py-4 px-1 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm cursor-pointer"
+                                class="tab-width py-4 px-1 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm cursor-pointer"
                                 data-mode="reimagine">
                             Reimagine
+                        </button>
+                        <button id="replaceBgTab" 
+                                class="tab-width py-4 px-1 text-center border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm cursor-pointer"
+                                data-mode="replacebg">
+                            Replace Background
                         </button>
                     </nav>
                 </div>
@@ -102,6 +112,17 @@
                 </ol>
                 <p class="mt-3 text-sm text-gray-600">Example: "Make it cyberpunk style"</p>
             </div>
+
+            <div id="replaceBgInstructions" class="bg-blue-50 p-4 rounded-lg mb-6 hidden">
+                <h2 class="text-lg font-semibold mb-2">Background Replacement:</h2>
+                <ol class="list-decimal list-inside space-y-2 text-gray-700">
+                    <li>Describe the new background you want in the text field</li>
+                    <li>Ensure the main subject is clearly visible</li>
+                    <li>No selection needed - works on the whole image</li>
+                    <li>Click <span class="font-medium">"Apply Changes"</span> to replace the background</li>
+                </ol>
+                <p class="mt-3 text-sm text-gray-600">Example: "A sunny beach with palm trees"</p>
+            </div>
             
             <!-- Canvas container -->
             <div class="mb-6">
@@ -121,29 +142,28 @@
             </div>
 
             <!-- Edit controls -->
-            <div class="space-y-4">
+            <form id="editForm" class="space-y-4">
                 <div id="promptSection">
                     <label for="prompt" class="block text-sm font-medium mb-2">
                         <span id="promptLabel">What should appear in the selected areas?</span>
+                        <span class="block text-xs text-gray-500 mt-1">Include details about style and appearance</span>
                     </label>
                     <textarea id="prompt"
-                            placeholder="Describe your changes..."
-                            class="w-full p-2 border rounded h-24" required></textarea>
+                            placeholder=""
+                            class="w-full p-2 border rounded h-24" 
+                            required></textarea>
                 </div>
 
                 <div id="error" class="p-3 bg-red-100 text-red-700 rounded hidden"></div>
 
                 <div id="spinner" class="spinner"></div>
 
-                <div class="flex items-center gap-4">
+                <div class="flex items-center">
                     <button id="applyEditButton" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-                        Apply Changes
+                        Add changes
                     </button>
-                    <a href="/generate" class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700">
-                        Start Over
-                    </a>
                 </div>
-            </div>
+            </form>
 
             <div id="result" class="mt-8 hidden">
                 <h2 class="text-lg font-medium mb-4">Edited Image</h2>
@@ -155,6 +175,7 @@
     <script>
         window.imageData = "{{ image_data }}";
         window.editCount = parseInt("{{ edit_count }}");
+        window.initialStyle = "{{ style }}";
     </script>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>

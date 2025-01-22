@@ -9,6 +9,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const containerWidth = Math.min(container.clientWidth, 800);
     paper.view.viewSize = new paper.Size(containerWidth, containerWidth);
 
+    // Initialize UI elements early
+    const spinner = document.getElementById('spinner');
+    const errorDiv = document.getElementById('error');
+    if (spinner) spinner.style.display = 'none';
+    if (errorDiv) errorDiv.classList.add('hidden');
+
     try {
         const img = new Image();
         img.onload = function() {
@@ -45,9 +51,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         };
 
-        document.getElementById('lassoButton').addEventListener('click', toggleDrawing);
-        document.getElementById('clearButton').addEventListener('click', clearSelection);
-        document.getElementById('applyEditButton').addEventListener('click', submitEdit);
+        // Safe element initialization
+        const initializeEventListener = (id, eventType, callback) => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.addEventListener(eventType, callback);
+            } else {
+                console.error(`Element ${id} not found for event ${eventType}`);
+            }
+        };
+
+        initializeEventListener('lassoButton', 'click', toggleDrawing);
+        initializeEventListener('clearButton', 'click', clearSelection);
+        initializeEventListener('applyEditButton', 'click', submitEdit);
 
         const tabs = document.querySelectorAll('[data-mode]');
         const sections = {
@@ -55,7 +71,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             instructions: {
                 inpaint: document.getElementById('inpaintInstructions'),
                 cleanup: document.getElementById('cleanupInstructions'),
-                reimagine: document.getElementById('reimagineInstructions')
+                reimagine: document.getElementById('reimagineInstructions'),
+                replacebg: document.getElementById('replaceBgInstructions')
             }
         };
 
@@ -71,19 +88,43 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 const mode = tab.dataset.mode;
                 const isReimagine = mode === 'reimagine';
+                const isReplaceBg = mode === 'replacebg';
                 
-                // Toggle UI elements
-                document.querySelector('.canvas-container').classList.toggle('hidden', isReimagine);
-                document.getElementById('lassoButton').classList.toggle('hidden', isReimagine);
-                document.getElementById('clearButton').classList.toggle('hidden', isReimagine);
-                document.getElementById('promptLabel').textContent = isReimagine 
-                    ? 'How should the image be transformed?' 
-                    : 'What should appear in the selected areas?';
+                // Update button text
+                const applyButton = document.getElementById('applyEditButton');
+                if (applyButton) {
+                    const buttonTexts = {
+                        'inpaint': 'Add changes',
+                        'cleanup': 'Remove parts',
+                        'replacebg': 'Change background',
+                        'reimagine': 'Reimagine image'
+                    };
+                    applyButton.textContent = buttonTexts[mode] || 'Apply Changes';
+                }
+                
+                // Toggle visibility
+                const lassoButton = document.getElementById('lassoButton');
+                const clearButton = document.getElementById('clearButton');
+                if (lassoButton) lassoButton.classList.toggle('hidden', isReimagine || isReplaceBg);
+                if (clearButton) clearButton.classList.toggle('hidden', isReimagine || isReplaceBg);
 
-                sections.prompt.classList.toggle('hidden', mode === 'cleanup');
-                sections.instructions.inpaint.classList.toggle('hidden', mode !== 'inpaint');
-                sections.instructions.cleanup.classList.toggle('hidden', mode !== 'cleanup');
-                sections.instructions.reimagine.classList.toggle('hidden', mode !== 'reimagine');
+                // Toggle prompt section
+                if (sections.prompt) {
+                    sections.prompt.classList.toggle('hidden', !['inpaint', 'replacebg'].includes(mode));
+                }
+
+                // Update prompt label
+                const promptLabel = document.getElementById('promptLabel');
+                if (promptLabel) {
+                    promptLabel.textContent = mode === 'replacebg' 
+                        ? 'What should the new background be?' 
+                        : 'What should appear in the selected areas?';
+                }
+
+                // Toggle instructions
+                Object.entries(sections.instructions).forEach(([key, element]) => {
+                    if (element) element.classList.toggle('hidden', mode !== key);
+                });
             });
         });
 
@@ -95,16 +136,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 function toggleDrawing() {
     const button = document.getElementById('lassoButton');
+    if (!button) return;
+
     if (isDrawing) {
         isDrawing = false;
         if (path) path.closed = true;
         button.textContent = 'Draw Selection';
-        button.classList.remove('bg-green-600');
-        button.classList.add('bg-blue-600');
+        button.classList.replace('bg-green-600', 'bg-blue-600');
     } else {
         button.textContent = 'Finish Selection';
-        button.classList.remove('bg-blue-600');
-        button.classList.add('bg-green-600');
+        button.classList.replace('bg-blue-600', 'bg-green-600');
     }
 }
 
@@ -160,80 +201,121 @@ async function createMaskFromCanvas() {
 }
 
 async function submitEdit() {
-    const activeTab = document.querySelector('[data-mode].border-blue-500');
-    const mode = activeTab.dataset.mode;
+    const form = document.getElementById('editForm');
+    const promptInput = document.getElementById('prompt');
     const button = document.getElementById('applyEditButton');
     const errorDiv = document.getElementById('error');
     const spinner = document.getElementById('spinner');
+    
+    // Validate critical elements
+    if (!form || !promptInput || !button || !errorDiv || !spinner) {
+        console.error('Missing critical UI elements');
+        return;
+    }
 
     try {
-        if (mode === 'reimagine') {
-            if (!document.getElementById('prompt').value.trim()) {
-                throw new Error('Please describe how to transform the image');
-            }
-        } else if (mode === 'inpaint') {
-            if (!document.getElementById('prompt').value.trim()) {
-                throw new Error('Please describe what should appear in selected areas');
+        // Input validation
+        if (promptInput.value.length > 1000) {
+            promptInput.value = promptInput.value.substring(0, 1000);
+        }
+
+        const activeTab = document.querySelector('[data-mode].border-blue-500');
+        if (!activeTab) {
+            throw new Error('No editing mode selected');
+        }
+        const mode = activeTab.dataset.mode;
+
+        // Mode-specific validation
+        if (['inpaint', 'replacebg'].includes(mode)) {
+            const prompt = promptInput.value.trim();
+            if (!prompt) {
+                throw new Error(mode === 'inpaint' 
+                    ? 'Please describe what should appear in selected areas'
+                    : 'Please describe the new background');
             }
         }
         
-        if (paths.length === 0 && mode !== 'reimagine') {
+        if (paths.length === 0 && !['reimagine', 'replacebg'].includes(mode)) {
             throw new Error('Please make a selection first');
         }
 
+        // Set loading state
+        form.classList.add('loading');
         button.disabled = true;
         button.textContent = 'Processing...';
         errorDiv.classList.add('hidden');
         spinner.style.display = 'block';
 
+        // Prepare form data
         const formData = new FormData();
         formData.append('image', window.imageData);
         formData.append('mode', mode);
+        formData.append('style', window.initialStyle);
 
-        if (mode === 'reimagine') {
-            formData.append('prompt', document.getElementById('prompt').value.trim());
-        } else {
+        if (mode === 'replacebg') {
+            formData.append('prompt', promptInput.value.trim());
+        } else if (mode !== 'reimagine') {
             const maskBlob = await createMaskFromCanvas();
             formData.append('mask', maskBlob);
             
             if (mode === 'inpaint') {
-                formData.append('prompt', document.getElementById('prompt').value.trim());
-            } else {
-                formData.append('cleanup_mode', 'quality');
+                formData.append('prompt', promptInput.value.trim());
             }
         }
 
+        // API call
         const response = await fetch('/direct-modification', {
             method: 'POST',
             body: formData
         });
 
-        if (!response.ok) throw new Error(await response.text());
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || 'Request failed');
+        }
 
+        // Process response
         const editedBlob = await response.blob();
         const compressedBase64 = await compressImage(editedBlob, 800, 0.8);
 
-        const form = document.createElement('form');
-        form.method = 'POST';
-        form.action = '/edit';
-        form.innerHTML = `
+        // Create submission form (renamed variable to avoid conflict)
+        const submissionForm = document.createElement('form');
+        submissionForm.method = 'POST';
+        submissionForm.action = '/edit';
+        submissionForm.innerHTML = `
             <input type="hidden" name="image" value="${compressedBase64}">
             <input type="hidden" name="edit_count" value="${window.editCount + 1}">
+            <input type="hidden" name="style" value="${window.initialStyle}">
         `;
-        document.body.appendChild(form);
-        form.submit();
+        document.body.appendChild(submissionForm);
+        submissionForm.submit();
 
     } catch (err) {
         console.error('Edit failed:', err);
-        showError(err.message.includes('Payload') ? 'Image too large - try smaller selections' : err.message);
+        const errorMessage = err.message.includes('Payload') 
+            ? 'Image too large - try smaller selections' 
+            : err.message;
+        showError(errorMessage);
     } finally {
-        button.disabled = false;
-        button.textContent = 'Apply Changes';
-        spinner.style.display = 'none';
+        // Cleanup
+        if (form) form.classList.remove('loading');
+        if (button) {
+            button.disabled = false;
+            const currentTab = document.querySelector('[data-mode].border-blue-500');
+            if (currentTab) {
+                const buttonTexts = {
+                    'inpaint': 'Add changes',
+                    'cleanup': 'Remove parts',
+                    'replacebg': 'Change background',
+                    'reimagine': 'Reimagine image'
+                };
+                button.textContent = buttonTexts[currentTab.dataset.mode] || 'Apply Changes';
+            }
+        }
+        if (spinner) spinner.style.display = 'none';
     }
 }
 
-// Helper functions
 function loadImage(src) {
     return new Promise(resolve => {
         const img = new Image();
@@ -272,6 +354,8 @@ async function compressImage(blob, maxSize = 800, quality = 0.8) {
 
 function showError(message) {
     const errorDiv = document.getElementById('error');
-    errorDiv.textContent = message;
-    errorDiv.classList.remove('hidden');
+    if (errorDiv) {
+        errorDiv.textContent = message;
+        errorDiv.classList.remove('hidden');
+    }
 }

@@ -33,13 +33,32 @@
             
             <form id="generateForm" class="space-y-6">
                 <div>
-                    <label class="block text-sm font-medium mb-2">Prompt</label>
+                    <label class="block text-sm font-medium mb-2">
+                        Prompt
+                        <span class="block text-xs text-gray-500 mt-1">For best results, include style references and quality terms</span>
+                    </label>
                     <textarea
                         id="prompt"
-                        placeholder="Describe the image you want to generate..."
+                        placeholder=""
                         class="w-full p-2 border rounded h-24"
                         required
                     ></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium mb-2">
+                        Style
+                        <span class="block text-xs text-gray-500 mt-1">Select a visual style for your image</span>
+                    </label>
+                    <select id="style" class="w-full p-2 border rounded">
+                        <option value="">No specific style</option>
+                        <option value="realistic">Hyper-Realistic</option>
+                        <option value="cyberpunk">Cyberpunk</option>
+                        <option value="oilpainting">Oil Painting</option>
+                        <option value="anime">Anime</option>
+                        <option value="digitalart">Digital Art</option>
+                        <option value="pixelart">Pixel Art</option>
+                    </select>
                 </div>
 
                 <div id="error" class="p-3 bg-red-100 text-red-700 rounded hidden"></div>
@@ -80,11 +99,16 @@
             
             error.classList.add('hidden');
             const prompt = document.getElementById('prompt').value.trim();
+            const style = document.getElementById('style').value;
 
             if (!prompt) {
                 error.textContent = 'Please enter a prompt';
                 error.classList.remove('hidden');
                 return;
+            }
+
+            if (prompt.length > 1000) {
+                document.getElementById('prompt').value = prompt.substring(0, 1000);
             }
 
             form.classList.add('loading');
@@ -95,7 +119,10 @@
                 const response = await fetch('/generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt: prompt })
+                    body: JSON.stringify({ 
+                        prompt: prompt,
+                        style: style
+                    })
                 });
 
                 if (!response.ok) {
@@ -125,24 +152,19 @@
         document.getElementById('editButton').addEventListener('click', async () => {
             const img = document.getElementById('generatedImage');
             if (img.src) {
-                // Create a canvas to resize the image
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
-                
-                // Create a new image for getting original dimensions
                 const tempImg = new Image();
                 tempImg.src = img.src;
                 
                 await new Promise(resolve => tempImg.onload = resolve);
                 
-                // Set maximum dimensions
                 const MAX_WIDTH = 800;
                 const MAX_HEIGHT = 800;
                 
                 let width = tempImg.width;
                 let height = tempImg.height;
                 
-                // Calculate new dimensions
                 if (width > height) {
                     if (width > MAX_WIDTH) {
                         height *= MAX_WIDTH / width;
@@ -155,17 +177,12 @@
                     }
                 }
                 
-                // Set canvas dimensions
                 canvas.width = width;
                 canvas.height = height;
-                
-                // Draw image on canvas
                 ctx.drawImage(tempImg, 0, 0, width, height);
                 
-                // Get compressed base64 data
                 const compressedData = canvas.toDataURL('image/jpeg', 0.8);
                 
-                // Create and submit form
                 const form = document.createElement('form');
                 form.method = 'POST';
                 form.action = '/edit';
@@ -181,6 +198,13 @@
                 countInput.name = 'edit_count';
                 countInput.value = '1';
                 form.appendChild(countInput);
+
+                // Add style preservation to edit form
+                const styleInput = document.createElement('input');
+                styleInput.type = 'hidden';
+                styleInput.name = 'style';
+                styleInput.value = document.getElementById('style').value;
+                form.appendChild(styleInput);
 
                 document.body.appendChild(form);
                 form.submit();
