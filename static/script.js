@@ -1,13 +1,141 @@
+// Image history management
+class ImageHistory {
+    constructor(maxSize = 10) {
+        this.maxSize = maxSize;
+        this.storageKey = 'imageEditHistory';
+    }
+
+    getHistory() {
+        try {
+            const history = localStorage.getItem(this.storageKey);
+            return history ? JSON.parse(history) : [];
+        } catch (error) {
+            console.error('Error reading history:', error);
+            return [];
+        }
+    }
+
+    addVersion(imageData, editCount) {
+        try {
+            let history = this.getHistory();
+            
+            // Add new version
+            history.push({
+                imageData,
+                editCount,
+                timestamp: Date.now()
+            });
+
+            // Keep only last N versions
+            if (history.length > this.maxSize) {
+                history = history.slice(-this.maxSize);
+            }
+
+            localStorage.setItem(this.storageKey, JSON.stringify(history));
+            this.updateUndoButton();
+        } catch (error) {
+            console.error('Error adding version:', error);
+        }
+    }
+
+    undo() {
+        try {
+            let history = this.getHistory();
+            if (history.length === 0) {
+                return null;
+            }
+
+            const lastVersion = history.pop();
+            localStorage.setItem(this.storageKey, JSON.stringify(history));
+            
+            this.updateUndoButton();
+            
+            return {
+                imageData: lastVersion.imageData,
+                editCount: lastVersion.editCount,
+                canUndo: history.length > 0
+            };
+        } catch (error) {
+            console.error('Error during undo:', error);
+            return null;
+        }
+    }
+
+    canUndo() {
+        return this.getHistory().length > 0;
+    }
+
+    updateUndoButton() {
+        const undoButton = document.getElementById('undoButton');
+        if (undoButton) {
+            undoButton.classList.toggle('hidden', !this.canUndo());
+        }
+    }
+}
+
+// Global variables for Paper.js
 let paths = [];
 let isDrawing = false;
 let raster;
 let path;
+let historyManager;
 
-document.addEventListener('DOMContentLoaded', async () => {
+// Initialize Paper.js canvas and tools
+function initializePaperCanvas() {
     paper.setup('canvas');
     const container = document.querySelector('.canvas-container');
     const containerWidth = Math.min(container.clientWidth, 800);
     paper.view.viewSize = new paper.Size(containerWidth, containerWidth);
+
+    // Initialize image
+    const img = new Image();
+    img.onload = function() {
+        raster = new paper.Raster(img);
+        const scale = Math.min(containerWidth / img.width, containerWidth / img.height);
+        raster.scale(scale);
+        raster.position = paper.view.center;
+    };
+    img.src = window.imageData;
+
+    // Setup drawing tool
+    const tool = new paper.Tool();
+    
+    tool.onMouseDown = function(event) {
+        if (!isDrawing) {
+            isDrawing = true;
+            path = new paper.Path({
+                segments: [event.point],
+                strokeColor: 'white',
+                strokeWidth: 2,
+                dashArray: [5, 5],
+                fillColor: new paper.Color(1, 1, 1, 0.2)
+            });
+            paths.push(path);
+        }
+    };
+
+    tool.onMouseDrag = function(event) {
+        if (isDrawing && path) {
+            path.add(event.point);
+        }
+    };
+
+    tool.onMouseUp = function() {
+        if (isDrawing) {
+            if (path) {
+                path.closed = true;
+            }
+            isDrawing = false;
+        }
+    };
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+    // Initialize history manager first
+    historyManager = new ImageHistory();
+    
+    // Initialize Paper.js canvas
+    initializePaperCanvas();
 
     // Initialize UI elements
     const spinner = document.getElementById('spinner');
@@ -16,43 +144,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (errorDiv) errorDiv.classList.add('hidden');
 
     try {
-        // Initialize image
-        const img = new Image();
-        img.onload = function() {
-            raster = new paper.Raster(img);
-            const scale = Math.min(containerWidth / img.width, containerWidth / img.height);
-            raster.scale(scale);
-            raster.position = paper.view.center;
-        };
-        img.src = window.imageData;
-
-        // Setup drawing tool
-        const tool = new paper.Tool();
-        tool.onMouseDown = (event) => {
-            if (!isDrawing) {
-                isDrawing = true;
-                path = new paper.Path({
-                    segments: [event.point],
-                    strokeColor: 'white',
-                    strokeWidth: 2,
-                    dashArray: [5, 5],
-                    fillColor: new paper.Color(1, 1, 1, 0.2)
-                });
-                paths.push(path);
-            }
-        };
-        
-        tool.onMouseDrag = (event) => {
-            if (isDrawing) path.add(event.point);
-        };
-        
-        tool.onMouseUp = () => {
-            if (isDrawing) {
-                path.closed = true;
-                isDrawing = false;
-            }
-        };
-
         // Initialize event listeners
         const initListener = (id, event, fn) => {
             const el = document.getElementById(id);
@@ -63,6 +154,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         initListener('lassoButton', 'click', toggleDrawing);
         initListener('clearButton', 'click', clearSelection);
         initListener('applyEditButton', 'click', submitEdit);
+        initListener('undoButton', 'click', handleUndo);
+
+        // Initialize undo button state
+        historyManager.updateUndoButton();
 
         // Tab management
         const tabs = document.querySelectorAll('[data-mode]');
@@ -77,7 +172,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
 
         // Activate initial tab from server
-        const initialMode = "{{ mode|default('inpaint') }}";
+        const initialMode = window.initialMode || 'inpaint';
         let activeTab = document.querySelector(`[data-mode="${initialMode}"]`);
         if (!activeTab) activeTab = document.querySelector('[data-mode]');
         if (activeTab) activateTab(activeTab);
@@ -92,63 +187,70 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
 
-        function activateTab(tab) {
-            tabs.forEach(t => {
-                t.classList.remove('border-blue-500', 'text-blue-600');
-                t.classList.add('border-transparent', 'text-gray-500');
-            });
-
-            tab.classList.remove('border-transparent', 'text-gray-500');
-            tab.classList.add('border-blue-500', 'text-blue-600');
-
-            const mode = tab.dataset.mode;
-            updateUIForMode(mode);
-        }
-
-        function updateUIForMode(mode) {
-            const isReimagine = mode === 'reimagine';
-            const isReplaceBg = mode === 'replacebg';
-            
-            // Update main button text
-            const buttonTexts = {
-                'inpaint': 'Add changes',
-                'cleanup': 'Remove parts',
-                'replacebg': 'Change background',
-                'reimagine': 'Reimagine image'
-            };
-            const applyButton = document.getElementById('applyEditButton');
-            if (applyButton) applyButton.textContent = buttonTexts[mode] || 'Apply Changes';
-            
-            // Toggle tools
-            const lassoButton = document.getElementById('lassoButton');
-            const clearButton = document.getElementById('clearButton');
-            if (lassoButton) lassoButton.classList.toggle('hidden', isReimagine || isReplaceBg);
-            if (clearButton) clearButton.classList.toggle('hidden', isReimagine || isReplaceBg);
-
-            // Toggle prompt section
-            if (sections.prompt) {
-                sections.prompt.classList.toggle('hidden', !['inpaint', 'replacebg'].includes(mode));
-            }
-
-            // Update prompt label
-            const promptLabel = document.getElementById('promptLabel');
-            if (promptLabel) {
-                promptLabel.textContent = mode === 'replacebg' 
-                    ? 'What should the new background be?' 
-                    : 'What should appear in the selected areas?';
-            }
-
-            // Toggle instructions
-            Object.entries(sections.instructions).forEach(([key, element]) => {
-                if (element) element.classList.toggle('hidden', mode !== key);
-            });
-        }
-
     } catch (error) {
         console.error('Initialization error:', error);
         showError('Error initializing editor. Please refresh.');
     }
 });
+function activateTab(tab) {
+    const tabs = document.querySelectorAll('[data-mode]');
+    tabs.forEach(t => {
+        t.classList.remove('border-blue-500', 'text-blue-600');
+        t.classList.add('border-transparent', 'text-gray-500');
+    });
+
+    tab.classList.remove('border-transparent', 'text-gray-500');
+    tab.classList.add('border-blue-500', 'text-blue-600');
+
+    const mode = tab.dataset.mode;
+    updateUIForMode(mode);
+}
+
+function updateUIForMode(mode) {
+    const isReimagine = mode === 'reimagine';
+    const isReplaceBg = mode === 'replacebg';
+    
+    // Update main button text
+    const buttonTexts = {
+        'inpaint': 'Add changes',
+        'cleanup': 'Remove parts',
+        'replacebg': 'Change background',
+        'reimagine': 'Reimagine image'
+    };
+    const applyButton = document.getElementById('applyEditButton');
+    if (applyButton) applyButton.textContent = buttonTexts[mode] || 'Apply Changes';
+    
+    // Toggle tools
+    const lassoButton = document.getElementById('lassoButton');
+    const clearButton = document.getElementById('clearButton');
+    if (lassoButton) lassoButton.classList.toggle('hidden', isReimagine || isReplaceBg);
+    if (clearButton) clearButton.classList.toggle('hidden', isReimagine || isReplaceBg);
+
+    // Toggle prompt section
+    const promptSection = document.getElementById('promptSection');
+    if (promptSection) {
+        promptSection.classList.toggle('hidden', !['inpaint', 'replacebg'].includes(mode));
+    }
+
+    // Update prompt label
+    const promptLabel = document.getElementById('promptLabel');
+    if (promptLabel) {
+        promptLabel.textContent = mode === 'replacebg' 
+            ? 'What should the new background be?' 
+            : 'What should appear in the selected areas?';
+    }
+
+    // Toggle instructions
+    const sections = {
+        inpaint: document.getElementById('inpaintInstructions'),
+        cleanup: document.getElementById('cleanupInstructions'),
+        reimagine: document.getElementById('reimagineInstructions'),
+        replacebg: document.getElementById('replaceBgInstructions')
+    };
+    Object.entries(sections).forEach(([key, element]) => {
+        if (element) element.classList.toggle('hidden', mode !== key);
+    });
+}
 
 function toggleDrawing() {
     const button = document.getElementById('lassoButton');
@@ -170,6 +272,44 @@ function clearSelection() {
     paths = [];
     path = null;
     paper.view.update();
+}
+
+async function handleUndo() {
+    const undoButton = document.getElementById('undoButton');
+    const spinner = document.getElementById('spinner');
+    const errorDiv = document.getElementById('error');
+
+    try {
+        spinner.style.display = 'block';
+        undoButton.disabled = true;
+        errorDiv.classList.add('hidden');
+
+        const previousVersion = historyManager.undo();
+        if (!previousVersion) {
+            throw new Error('No history available');
+        }
+
+        // Create form for reload
+        const submissionForm = document.createElement('form');
+        submissionForm.method = 'POST';
+        submissionForm.action = '/edit';
+        submissionForm.innerHTML = `
+            <input type="hidden" name="image" value="${previousVersion.imageData}">
+            <input type="hidden" name="edit_count" value="${previousVersion.editCount}">
+            <input type="hidden" name="style" value="${window.initialStyle}">
+            <input type="hidden" name="mode" value="${window.initialMode}">
+            <input type="hidden" name="is_undo" value="true">
+        `;
+        document.body.appendChild(submissionForm);
+        submissionForm.submit();
+
+    } catch (err) {
+        console.error('Undo failed:', err);
+        errorDiv.textContent = err.message || 'Failed to undo last edit';
+        errorDiv.classList.remove('hidden');
+        spinner.style.display = 'none';
+        undoButton.disabled = false;
+    }
 }
 
 async function createMaskFromCanvas() {
@@ -233,6 +373,9 @@ async function submitEdit() {
         const activeTab = document.querySelector('[data-mode].border-blue-500');
         if (!activeTab) throw new Error('No editing mode selected');
         const mode = activeTab.dataset.mode;
+
+        // Store the current state before making changes
+        historyManager.addVersion(window.imageData, window.editCount);
 
         // Validate inputs
         if (promptInput.value.length > 1000) {

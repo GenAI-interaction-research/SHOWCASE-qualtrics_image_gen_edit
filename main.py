@@ -94,15 +94,34 @@ def create_app():
 
     @app.route('/edit', methods=['POST'])
     def edit():
-        image_data = request.form.get('image')
-        edit_count = request.form.get('edit_count', 1)
-        style = request.form.get('style', '')
-        mode = request.form.get('mode', 'inpaint')  # Get current mode from form
-        return render_template('edit.html', 
-                             image_data=image_data,
-                             edit_count=edit_count,
-                             style=style,
-                             mode=mode)  # Pass mode to template
+        try:
+            image_data = request.form.get('image')
+            edit_count = request.form.get('edit_count', 1)
+            style = request.form.get('style', '')
+            mode = request.form.get('mode', 'inpaint')
+            is_undo = request.form.get('is_undo', 'false') == 'true'
+
+            if not image_data:
+                return jsonify({'success': False, 'error': 'No image data provided'}), 400
+
+            # If this is an undo operation, we don't increment edit_count
+            if not is_undo:
+                edit_count = int(edit_count)
+            else:
+                try:
+                    edit_count = int(edit_count)
+                except ValueError:
+                    edit_count = 1
+
+            return render_template('edit.html',
+                                 image_data=image_data,
+                                 edit_count=edit_count,
+                                 style=style,
+                                 mode=mode)
+
+        except Exception as e:
+            logger.error(f"Edit error: {str(e)}")
+            return jsonify({'success': False, 'error': str(e)}), 500
 
     @app.route('/direct-modification', methods=['POST'])
     def direct_modification():

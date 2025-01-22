@@ -125,13 +125,16 @@
                     <canvas id="canvas" resize></canvas>
                 </div>
                 
-                <!-- Selection tools -->
-                <div class="flex justify-center gap-4 mt-4">
+                <!-- Selection tools and Undo button -->
+                <div class="flex flex-wrap justify-center gap-4 mt-4">
                     <button id="lassoButton" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 {% if mode in ['reimagine', 'replacebg'] %}hidden{% endif %}">
                         Draw Selection
                     </button>
                     <button id="clearButton" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 {% if mode in ['reimagine', 'replacebg'] %}hidden{% endif %}">
                         Clear Selection
+                    </button>
+                    <button id="undoButton" class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 hidden">
+                        Undo Last Edit
                     </button>
                 </div>
             </div>
@@ -179,11 +182,6 @@
                     </button>
                 </div>
             </form>
-
-            <div id="result" class="mt-8 hidden">
-                <h2 class="text-lg font-medium mb-4">Edited Image</h2>
-                <img id="editedImage" class="w-full rounded-lg shadow" alt="Edited image">
-            </div>
         </div>
     </div>
 
