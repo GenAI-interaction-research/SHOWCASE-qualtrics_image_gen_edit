@@ -289,13 +289,13 @@ async function handleUndo() {
             throw new Error('No history available');
         }
 
-        // Create form for reload
+        // Create form for reload, using current edit count + 1
         const submissionForm = document.createElement('form');
         submissionForm.method = 'POST';
         submissionForm.action = '/edit';
         submissionForm.innerHTML = `
             <input type="hidden" name="image" value="${previousVersion.imageData}">
-            <input type="hidden" name="edit_count" value="${previousVersion.editCount}">
+            <input type="hidden" name="edit_count" value="${window.editCount + 1}">
             <input type="hidden" name="style" value="${window.initialStyle}">
             <input type="hidden" name="mode" value="${window.initialMode}">
             <input type="hidden" name="is_undo" value="true">
