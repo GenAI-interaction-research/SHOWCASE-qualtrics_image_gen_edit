@@ -355,6 +355,28 @@ async function createMaskFromCanvas() {
     });
 }
 
+// Function to send data back to Qualtrics via postMessage
+function sendToQualtrics(imageData) {
+    try {
+        // Send the image data to Qualtrics
+        window.parent.postMessage({
+            action: 'setEmbeddedData',
+            key: 'lastGeneratedImage',
+            value: imageData
+        }, '*');
+
+        // Enable the continue button in Qualtrics
+        window.parent.postMessage({
+            action: 'enableContinue',
+            completed: true
+        }, '*');
+
+        console.log('Image data sent to Qualtrics');
+    } catch (error) {
+        console.error('Error sending data to Qualtrics:', error);
+    }
+}
+
 async function submitEdit() {
     const form = document.getElementById('editForm');
     const promptInput = document.getElementById('prompt');
@@ -434,6 +456,20 @@ async function submitEdit() {
         const editedBlob = await response.blob();
         const compressedBase64 = await compressImage(editedBlob, 800, 0.8);
 
+        // After successful edit, send to Qualtrics
+        if (response) {
+            // Convert blob to base64 if it's not already
+            if (response instanceof Blob) {
+                const reader = new FileReader();
+                reader.onloadend = function() {
+                    sendToQualtrics(reader.result);
+                }
+                reader.readAsDataURL(response);
+            } else {
+                sendToQualtrics(response);
+            }
+        }
+
         // Create submission form
         const submissionForm = document.createElement('form');
         submissionForm.method = 'POST';
@@ -447,11 +483,11 @@ async function submitEdit() {
         document.body.appendChild(submissionForm);
         submissionForm.submit();
 
-    } catch (err) {
-        console.error('Edit failed:', err);
-        const errorMessage = err.message.includes('Payload') 
+    } catch (error) {
+        console.error('Edit failed:', error);
+        const errorMessage = error.message.includes('Payload') 
             ? 'Image too large - try smaller selections' 
-            : err.message;
+            : error.message;
         showError(errorMessage);
     } finally {
         // Cleanup
