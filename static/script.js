@@ -129,22 +129,16 @@ function initializePaperCanvas() {
         }
     };
 }
-
 document.addEventListener('DOMContentLoaded', async () => {
-    // Initialize history manager first
     historyManager = new ImageHistory();
-    
-    // Initialize Paper.js canvas
     initializePaperCanvas();
 
-    // Initialize UI elements
     const spinner = document.getElementById('spinner');
     const errorDiv = document.getElementById('error');
     if (spinner) spinner.style.display = 'none';
     if (errorDiv) errorDiv.classList.add('hidden');
 
     try {
-        // Initialize event listeners
         const initListener = (id, event, fn) => {
             const el = document.getElementById(id);
             if (el) el.addEventListener(event, fn);
@@ -156,10 +150,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         initListener('applyEditButton', 'click', submitEdit);
         initListener('undoButton', 'click', handleUndo);
 
-        // Initialize undo button state
         historyManager.updateUndoButton();
 
-        // Tab management
         const tabs = document.querySelectorAll('[data-mode]');
         const sections = {
             prompt: document.getElementById('promptSection'),
@@ -171,13 +163,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         };
 
-        // Activate initial tab from server
         const initialMode = window.initialMode || 'inpaint';
         let activeTab = document.querySelector(`[data-mode="${initialMode}"]`);
         if (!activeTab) activeTab = document.querySelector('[data-mode]');
         if (activeTab) activateTab(activeTab);
 
-        // Tab click handler
         tabs.forEach(tab => {
             tab.addEventListener('click', () => {
                 activateTab(tab);
@@ -192,6 +182,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         showError('Error initializing editor. Please refresh.');
     }
 });
+
 function activateTab(tab) {
     const tabs = document.querySelectorAll('[data-mode]');
     tabs.forEach(t => {
@@ -210,7 +201,6 @@ function updateUIForMode(mode) {
     const isReimagine = mode === 'reimagine';
     const isReplaceBg = mode === 'replacebg';
     
-    // Update main button text
     const buttonTexts = {
         'inpaint': 'Add changes',
         'cleanup': 'Remove parts',
@@ -220,19 +210,16 @@ function updateUIForMode(mode) {
     const applyButton = document.getElementById('applyEditButton');
     if (applyButton) applyButton.textContent = buttonTexts[mode] || 'Apply Changes';
     
-    // Toggle tools
     const lassoButton = document.getElementById('lassoButton');
     const clearButton = document.getElementById('clearButton');
     if (lassoButton) lassoButton.classList.toggle('hidden', isReimagine || isReplaceBg);
     if (clearButton) clearButton.classList.toggle('hidden', isReimagine || isReplaceBg);
 
-    // Toggle prompt section
     const promptSection = document.getElementById('promptSection');
     if (promptSection) {
         promptSection.classList.toggle('hidden', !['inpaint', 'replacebg'].includes(mode));
     }
 
-    // Update prompt label
     const promptLabel = document.getElementById('promptLabel');
     if (promptLabel) {
         promptLabel.textContent = mode === 'replacebg' 
@@ -240,7 +227,6 @@ function updateUIForMode(mode) {
             : 'What should appear in the selected areas?';
     }
 
-    // Toggle instructions
     const sections = {
         inpaint: document.getElementById('inpaintInstructions'),
         cleanup: document.getElementById('cleanupInstructions'),
@@ -289,7 +275,6 @@ async function handleUndo() {
             throw new Error('No history available');
         }
 
-        // Create form for reload, using current edit count + 1
         const submissionForm = document.createElement('form');
         submissionForm.method = 'POST';
         submissionForm.action = '/edit';
@@ -338,7 +323,6 @@ async function createMaskFromCanvas() {
         });
     }
 
-    // Binarize mask
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const data = imageData.data;
     for (let i = 0; i < data.length; i += 4) {
@@ -384,22 +368,18 @@ async function submitEdit() {
     const errorDiv = document.getElementById('error');
     const spinner = document.getElementById('spinner');
     
-    // Validate elements
     if (!form || !promptInput || !button || !errorDiv || !spinner) {
         console.error('Missing critical UI components');
         return;
     }
 
     try {
-        // Get current mode
         const activeTab = document.querySelector('[data-mode].border-blue-500');
         if (!activeTab) throw new Error('No editing mode selected');
         const mode = activeTab.dataset.mode;
 
-        // Store the current state before making changes
         historyManager.addVersion(window.imageData, window.editCount);
 
-        // Validate inputs
         if (promptInput.value.length > 1000) {
             promptInput.value = promptInput.value.substring(0, 1000);
         }
@@ -417,14 +397,12 @@ async function submitEdit() {
             throw new Error('Please make a selection first');
         }
 
-        // Set loading state
         form.classList.add('loading');
         button.disabled = true;
         button.textContent = 'Processing...';
         errorDiv.classList.add('hidden');
         spinner.style.display = 'block';
 
-        // Prepare form data
         const formData = new FormData();
         formData.append('image', window.imageData);
         formData.append('mode', mode);
@@ -441,7 +419,6 @@ async function submitEdit() {
             formData.append('mask', maskBlob);
         }
 
-        // Submit request
         const response = await fetch('/direct-modification', {
             method: 'POST',
             body: formData
@@ -452,25 +429,31 @@ async function submitEdit() {
             throw new Error(errorText || 'Request failed');
         }
 
-        // Process response
         const editedBlob = await response.blob();
         const compressedBase64 = await compressImage(editedBlob, 800, 0.8);
 
-        // After successful edit, send to Qualtrics
-        if (response) {
-            // Convert blob to base64 if it's not already
-            if (response instanceof Blob) {
-                const reader = new FileReader();
-                reader.onloadend = function() {
-                    sendToQualtrics(reader.result);
-                }
-                reader.readAsDataURL(response);
-            } else {
-                sendToQualtrics(response);
+        // After successful edit, send to Qualtrics if we've reached 4 or more edits
+        if (window.editCount >= 3) {
+            try {
+                // Send the image data to Qualtrics
+                window.parent.postMessage({
+                    action: 'setEmbeddedData',
+                    key: 'lastGeneratedImage',
+                    value: compressedBase64
+                }, '*');
+
+                // Enable the continue button in Qualtrics
+                window.parent.postMessage({
+                    action: 'enableContinue',
+                    completed: true
+                }, '*');
+
+                console.log('Image data sent to Qualtrics');
+            } catch (error) {
+                console.error('Error sending data to Qualtrics:', error);
             }
         }
 
-        // Create submission form
         const submissionForm = document.createElement('form');
         submissionForm.method = 'POST';
         submissionForm.action = '/edit';
@@ -490,7 +473,6 @@ async function submitEdit() {
             : error.message;
         showError(errorMessage);
     } finally {
-        // Cleanup
         if (form) form.classList.remove('loading');
         if (button) {
             button.disabled = false;
@@ -509,7 +491,6 @@ async function submitEdit() {
     }
 }
 
-// Utility functions
 function loadImage(src) {
     return new Promise(resolve => {
         const img = new Image();
