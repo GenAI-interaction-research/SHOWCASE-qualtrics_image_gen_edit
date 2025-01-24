@@ -429,6 +429,30 @@ async function submitEdit() {
         if (window.editCount >= 3) {
             try {
                 console.log('PROLIFIC_PID:', window.PROLIFIC_PID);
+                
+                // Wait for PROLIFIC_PID if not available
+                if (!window.PROLIFIC_PID) {
+                    console.log('Waiting for PROLIFIC_PID...');
+                    await new Promise((resolve) => {
+                        const checkPID = setInterval(() => {
+                            if (window.PROLIFIC_PID) {
+                                clearInterval(checkPID);
+                                resolve();
+                            }
+                        }, 100);
+                        // Timeout after 5 seconds
+                        setTimeout(() => {
+                            clearInterval(checkPID);
+                            resolve();
+                        }, 5000);
+                    });
+                    console.log('PROLIFIC_PID after waiting:', window.PROLIFIC_PID);
+                }
+
+                if (!window.PROLIFIC_PID) {
+                    throw new Error('PROLIFIC_PID not available');
+                }
+
                 // Save to Cloudinary with PROLIFIC_PID
                 const uploadResponse = await fetch('/save-final-image', {
                     method: 'POST',
@@ -444,6 +468,10 @@ async function submitEdit() {
                 const uploadResult = await uploadResponse.json();
                 console.log('Cloudinary upload result:', uploadResult);
 
+                if (!uploadResult.success) {
+                    throw new Error(uploadResult.error || 'Failed to upload to Cloudinary');
+                }
+
                 // Send to Qualtrics
                 window.parent.postMessage({
                     action: 'setEmbeddedData',
@@ -458,6 +486,8 @@ async function submitEdit() {
 
             } catch (error) {
                 console.error('Error saving to Cloudinary:', error);
+                showError('Failed to save final image: ' + error.message);
+                return;
             }
         }
 
