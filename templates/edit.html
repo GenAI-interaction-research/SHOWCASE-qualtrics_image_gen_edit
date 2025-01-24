@@ -45,6 +45,8 @@
 <body class="bg-gray-50">
    <div id="debugInfo" class="p-4 bg-gray-100">
        URL Parameters: <span id="urlParams"></span><br>
+       Raw URL: <span id="rawUrl"></span><br>
+       All Parameters: <span id="allParams"></span><br>
        PROLIFIC_PID: <span id="pidValue"></span>
    </div>
    <div class="container mx-auto px-4 py-8">
@@ -188,12 +190,17 @@
        window.editCount = parseInt("{{ edit_count }}");
        window.initialStyle = "{{ style }}";
        window.initialMode = "{{ mode }}";
-       window.PROLIFIC_PID = new URLSearchParams(window.location.search).get('PROLIFIC_PID');
-       
+       window.PROLIFIC_PID = "{{ prolific_id }}";
+
        document.getElementById('urlParams').textContent = window.location.search;
+       document.getElementById('rawUrl').textContent = window.location.href;
+       document.getElementById('allParams').textContent = JSON.stringify(Object.fromEntries(new URLSearchParams(window.location.search)));
        document.getElementById('pidValue').textContent = window.PROLIFIC_PID;
+       
+       console.log('Raw URL:', window.location.href);
        console.log('URL Parameters:', window.location.search);
-       console.log('Parsed PROLIFIC_PID:', window.PROLIFIC_PID);
+       console.log('All parameters:', Object.fromEntries(new URLSearchParams(window.location.search)));
+       console.log('PROLIFIC_PID:', window.PROLIFIC_PID);
    </script>
    <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
