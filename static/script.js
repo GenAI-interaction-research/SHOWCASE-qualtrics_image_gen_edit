@@ -124,9 +124,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     initializePaperCanvas();
 
     const spinner = document.getElementById('spinner');
+    const undoButton = document.getElementById('undoButton');
     const errorDiv = document.getElementById('error');
     if (spinner) spinner.style.display = 'none';
     if (errorDiv) errorDiv.classList.add('hidden');
+    if (undoButton) {
+        undoButton.classList.add('hidden'); // Hide undo button by default
+    }
 
     const initListener = (id, event, fn) => {
         const el = document.getElementById(id);
