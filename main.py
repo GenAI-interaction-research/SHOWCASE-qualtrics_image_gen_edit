@@ -227,6 +227,15 @@ def create_app():
            logger.error(f"Error storing PROLIFIC_PID: {str(e)}")
            return jsonify({'success': False, 'error': str(e)}), 500
 
+   @app.route('/check-prolific-id', methods=['GET'])
+   def check_prolific_id():
+       prolific_id = session.get('PROLIFIC_PID', '')
+       logger.info(f"Checking PROLIFIC_PID in session: {prolific_id}")
+       return jsonify({
+           'success': True,
+           'prolific_id': prolific_id
+       })
+
    @app.route('/save-final-image', methods=['POST'])
    def save_final_image():
        try:
