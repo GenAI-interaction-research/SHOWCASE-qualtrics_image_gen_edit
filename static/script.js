@@ -267,7 +267,7 @@ async function handleUndo() {
 
 // Helper function to update edit count display
 function updateEditCountDisplay() {
-    const editCountDisplay = document.querySelector('h1.text-2xl');
+    const editCountDisplay = document.querySelector('h1');
     if (editCountDisplay) {
         editCountDisplay.textContent = `Edit ${window.editCount}`;
     }
@@ -276,8 +276,7 @@ function updateEditCountDisplay() {
 
 // Helper function to check if enough edits have been made and notify Qualtrics
 function checkEditThresholdAndNotifyQualtrics() {
-    const editCount = parseInt(document.getElementById('editCount').textContent);
-    if (editCount >= 3) {
+    if (window.editCount >= 3) {
         // Notify Qualtrics that enough edits have been made
         window.parent.postMessage({
             action: 'enableContinue',
