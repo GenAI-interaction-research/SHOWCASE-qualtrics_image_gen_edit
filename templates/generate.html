@@ -86,16 +86,14 @@
     </div>
 
     <script>
-        // Initialize PROLIFIC_PID from localStorage or empty
-        window.PROLIFIC_PID = localStorage.getItem('PROLIFIC_PID') || '';
+        // Initialize PROLIFIC_PID
+        window.PROLIFIC_PID = '';
         
         // Listen for PROLIFIC_PID from Qualtrics
         window.addEventListener('message', function(event) {
             if (event.data.action === 'setProlificId') {
                 window.PROLIFIC_PID = event.data.value;
-                // Store in localStorage
-                localStorage.setItem('PROLIFIC_PID', event.data.value);
-                console.log('Received and stored PROLIFIC_PID:', window.PROLIFIC_PID);
+                console.log('Received PROLIFIC_PID:', window.PROLIFIC_PID);
             }
         });
 
@@ -216,6 +214,12 @@
                 styleInput.name = 'style';
                 styleInput.value = document.getElementById('style').value;
                 form.appendChild(styleInput);
+
+                const prolificInput = document.createElement('input');
+                prolificInput.type = 'hidden';
+                prolificInput.name = 'PROLIFIC_PID';
+                prolificInput.value = window.PROLIFIC_PID;
+                form.appendChild(prolificInput);
 
                 document.body.appendChild(form);
                 form.submit();

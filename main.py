@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, Response
+from flask import Flask, request, jsonify, render_template, Response, session
 from flask_cors import CORS
 import logging
 from PIL import Image
@@ -52,7 +52,18 @@ def create_app():
    app = Flask(__name__, static_url_path='', static_folder='static')
    app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024
    app.wsgi_app = ProxyFix(app.wsgi_app)
-   CORS(app)
+   app.secret_key = os.getenv('SECRET_KEY', 'dev-key-123')
+   
+   # Update CORS configuration
+   CORS(app, supports_credentials=True, resources={
+       r"/*": {
+           "origins": ["https://survey.eu.qualtrics.com"],
+           "methods": ["GET", "POST", "OPTIONS"],
+           "allow_headers": ["Content-Type"],
+           "expose_headers": ["Access-Control-Allow-Origin"],
+           "supports_credentials": True
+       }
+   })
 
    cloudinary.config( 
        cloud_name = "ddzia7e31",
@@ -67,7 +78,8 @@ def create_app():
 
    @app.route('/')
    def index():
-       return render_template('generate.html')
+       prolific_id = request.args.get('PROLIFIC_PID', '')
+       return render_template('generate.html', prolific_id=prolific_id)
 
    @app.route('/generate', methods=['POST'])
    def generate():
@@ -95,8 +107,8 @@ def create_app():
            image_data = request.form.get('image')
            edit_count = request.form.get('edit_count', 1)
            style = request.form.get('style', '')
-           mode = request.form.get('mode', 'inpaint')
-           prolific_id = request.form.get('PROLIFIC_PID', '')
+           mode = request.form.get('mode', '')
+           prolific_id = session.get('PROLIFIC_PID', '')
 
            if not image_data:
                return jsonify({'success': False, 'error': 'No image data provided'}), 400
@@ -200,6 +212,20 @@ def create_app():
        )
        response.raise_for_status()
        return Response(response.content, mimetype='image/jpeg')
+
+   @app.route('/set-prolific-id', methods=['POST'])
+   def set_prolific_id():
+       try:
+           data = request.get_json()
+           if not data or 'prolific_id' not in data:
+               return jsonify({'success': False, 'error': 'Missing PROLIFIC_ID'}), 400
+            
+           session['PROLIFIC_PID'] = data['prolific_id']
+           logger.info(f"Stored PROLIFIC_PID in session: {data['prolific_id']}")
+           return jsonify({'success': True}), 200
+       except Exception as e:
+           logger.error(f"Error storing PROLIFIC_PID: {str(e)}")
+           return jsonify({'success': False, 'error': str(e)}), 500
 
    @app.route('/save-final-image', methods=['POST'])
    def save_final_image():
