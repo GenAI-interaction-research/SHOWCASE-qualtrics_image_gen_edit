@@ -411,6 +411,9 @@ async function submitEdit() {
 
         const response = await fetch('/direct-modification', {
             method: 'POST',
+            headers: {
+                'X-PROLIFIC-PID': window.PROLIFIC_PID
+            },
             body: formData
         });
 

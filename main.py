@@ -120,6 +120,7 @@ def create_app():
    @app.route('/direct-modification', methods=['POST'])
    def direct_modification():
        try:
+           prolific_id = request.headers.get('X-PROLIFIC-PID')
            image_data = request.form.get('image')
            style = request.form.get('style', '')
            if not image_data:
