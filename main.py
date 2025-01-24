@@ -232,7 +232,7 @@ def create_app():
                data['imageData'],
                folder="prolific_images",
                public_id=prolific_id,
-               upload_preset="qualtrics_upload"
+               upload_preset="ml_default"  # Changed from qualtrics_upload to ml_default
            )
            
            logger.info(f"Upload successful. URL: {result['secure_url']}")

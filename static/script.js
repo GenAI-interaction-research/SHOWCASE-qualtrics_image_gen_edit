@@ -351,7 +351,6 @@ async function compressImage(blob, maxSize = 800, quality = 0.8) {
 }
 
 async function submitEdit() {
-    console.log('PROLIFIC_PID:', window.PROLIFIC_PID);
     const form = document.getElementById('editForm');
     const promptInput = document.getElementById('prompt');
     const button = document.getElementById('applyEditButton');
@@ -425,6 +424,7 @@ async function submitEdit() {
         // After successful edit, save to Cloudinary and send to Qualtrics if we've reached 4 or more edits
         if (window.editCount >= 3) {
             try {
+                console.log('PROLIFIC_PID:', window.PROLIFIC_PID);
                 // Save to Cloudinary with PROLIFIC_PID
                 const uploadResponse = await fetch('/save-final-image', {
                     method: 'POST',
