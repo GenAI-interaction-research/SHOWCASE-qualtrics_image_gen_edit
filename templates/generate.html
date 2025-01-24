@@ -97,6 +97,17 @@
             }
         });
 
+        // Store session ID globally
+        window.SESSION_ID = "{{ session_id }}";
+        console.log('Generated session ID:', window.SESSION_ID);
+        
+        // Send session ID to Qualtrics
+        window.parent.postMessage({
+            action: 'setEmbeddedData',
+            key: 'SESSION_ID',
+            value: window.SESSION_ID
+        }, '*');
+
         const form = document.getElementById('generateForm');
         const error = document.getElementById('error');
         const result = document.getElementById('result');
@@ -214,6 +225,13 @@
                 styleInput.name = 'style';
                 styleInput.value = document.getElementById('style').value;
                 form.appendChild(styleInput);
+
+                // Add session ID to form data
+                const sessionInput = document.createElement('input');
+                sessionInput.type = 'hidden';
+                sessionInput.name = 'session_id';
+                sessionInput.value = window.SESSION_ID;
+                form.appendChild(sessionInput);
 
                 const prolificInput = document.createElement('input');
                 prolificInput.type = 'hidden';

@@ -190,8 +190,41 @@
        window.editCount = parseInt("{{ edit_count }}");
        window.initialStyle = "{{ style }}";
        window.initialMode = "{{ mode }}";
-       window.PROLIFIC_PID = "{{ prolific_id }}";  // Get from server template
-       console.log('Initial PROLIFIC_PID from server:', window.PROLIFIC_PID);
+       window.SESSION_ID = "{{ session_id }}";
+       console.log('Session ID from template:', window.SESSION_ID);
+        
+       // Confirm session ID is stored in Qualtrics
+       window.parent.postMessage({
+           action: 'setEmbeddedData',
+           key: 'SESSION_ID',
+           value: window.SESSION_ID
+       }, '*');
+
+       // Use SESSION_ID when saving to Cloudinary
+       async function saveToCloudinary(imageData) {
+           try {
+               const response = await fetch('/save-final-image', {
+                   method: 'POST',
+                   headers: {
+                       'Content-Type': 'application/json',
+                   },
+                   body: JSON.stringify({
+                       image: imageData,
+                       session_id: window.SESSION_ID
+                   })
+               });
+               
+               const result = await response.json();
+               if (!result.success) {
+                   throw new Error(result.error || 'Failed to save image');
+               }
+               
+               return result;
+           } catch (error) {
+               console.error('Error saving to Cloudinary:', error);
+               throw error;
+           }
+       }
 
        // Also listen for updates from Qualtrics
        window.addEventListener('message', function(event) {

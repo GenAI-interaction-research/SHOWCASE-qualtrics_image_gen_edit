@@ -11,6 +11,8 @@ from dotenv import load_dotenv
 from werkzeug.middleware.proxy_fix import ProxyFix
 import cloudinary
 import cloudinary.uploader
+from uuid import uuid4
+from datetime import datetime
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -85,8 +87,10 @@ def create_app():
 
    @app.route('/')
    def index():
-       prolific_id = request.args.get('PROLIFIC_PID', '')
-       return render_template('generate.html', prolific_id=prolific_id)
+       # Generate a unique ID for this session
+       session_id = str(uuid4())
+       logger.info(f"Generated new session ID: {session_id}")
+       return render_template('generate.html', session_id=session_id)
 
    @app.route('/generate', methods=['POST'])
    def generate():
@@ -247,31 +251,42 @@ def create_app():
    def save_final_image():
        try:
            data = request.get_json()
-           if not data or 'imageData' not in data or 'prolificId' not in data:
-               return jsonify({'success': False, 'error': 'Missing data'}), 400
+           if not data:
+               return jsonify({'success': False, 'error': 'No data provided'}), 400
 
-           prolific_id = data['prolificId']
-           if not prolific_id:
-               return jsonify({'success': False, 'error': 'Missing PROLIFIC_ID'}), 400
+           image_data = data.get('image')
+           session_id = data.get('session_id')
 
-           logger.info(f"Attempting to upload image for PROLIFIC_ID: {prolific_id}")
-           
-           result = cloudinary.uploader.upload(
-               data['imageData'],
-               folder="prolific_images",
-               public_id=prolific_id,
-               upload_preset="ml_default"
+           if not image_data:
+               return jsonify({'success': False, 'error': 'No image data provided'}), 400
+           if not session_id:
+               return jsonify({'success': False, 'error': 'No session ID provided'}), 400
+
+           # Remove the data URL prefix
+           image_data = image_data.split(',')[1]
+            
+           # Upload to Cloudinary with session_id
+           timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+           public_id = f"qualtrics_images/{session_id}_{timestamp}"
+            
+           logger.info(f"Uploading image for session ID: {session_id}")
+            
+           # Upload to Cloudinary
+           upload_result = cloudinary.uploader.upload(
+               f"data:image/jpeg;base64,{image_data}",
+               public_id=public_id,
+               tags=[session_id]
            )
-           
-           logger.info(f"Upload successful. URL: {result['secure_url']}")
 
+           logger.info(f"Upload successful. URL: {upload_result['secure_url']}")
            return jsonify({
                'success': True,
-               'url': result['secure_url']
-           }), 200
+               'url': upload_result['secure_url'],
+               'public_id': upload_result['public_id']
+           })
 
        except Exception as e:
-           logger.error(f"Save image error: {str(e)}")
+           logger.error(f"Error saving image: {str(e)}")
            return jsonify({'success': False, 'error': str(e)}), 500
 
    return app
