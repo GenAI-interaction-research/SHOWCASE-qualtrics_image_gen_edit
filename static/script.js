@@ -488,6 +488,11 @@ async function submitEdit() {
         paper.view.draw();
         console.log('Canvas updated');
 
+        // Save the edited image to Cloudinary
+        console.log('Saving to Cloudinary...');
+        await saveToCloudinary(url);
+        console.log('Saved to Cloudinary');
+
     } catch (error) {
         console.error('Edit failed:', error);
         const errorMessage = error.message.includes('Payload') 
