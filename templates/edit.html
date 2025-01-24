@@ -247,14 +247,14 @@
        });
 
        // Debug info
-       document.getElementById('rawUrl').textContent = window.location.href;
-       document.getElementById('urlParams').textContent = new URLSearchParams(window.location.search).toString();
-       document.getElementById('allParams').textContent = JSON.stringify({
-           editCount: window.editCount,
-           style: window.initialStyle,
-           prolificId: window.PROLIFIC_PID
-       });
-       document.getElementById('pidValue').textContent = window.PROLIFIC_PID;
+       //document.getElementById('rawUrl').textContent = window.location.href;
+       //document.getElementById('urlParams').textContent = new URLSearchParams(window.location.search).toString();
+       //document.getElementById('allParams').textContent = JSON.stringify({
+       //    editCount: window.editCount,
+       //    style: window.initialStyle,
+       //    prolificId: window.PROLIFIC_PID
+       //});
+       //document.getElementById('pidValue').textContent = window.PROLIFIC_PID;
    </script>
    <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
