@@ -250,19 +250,7 @@ async function handleUndo() {
             throw new Error('No history available');
         }
 
-        const submissionForm = document.createElement('form');
-        submissionForm.method = 'POST';
-        submissionForm.action = '/edit';
-        submissionForm.innerHTML = `
-            <input type="hidden" name="image" value="${previousVersion.imageData}">
-            <input type="hidden" name="edit_count" value="${window.editCount + 1}">
-            <input type="hidden" name="style" value="${window.initialStyle}">
-            <input type="hidden" name="mode" value="${window.initialMode}">
-            <input type="hidden" name="is_undo" value="true">
-            <input type="hidden" name="PROLIFIC_PID" value="${window.PROLIFIC_PID}">
-        `;
-        document.body.appendChild(submissionForm);
-        submissionForm.submit();
+        undoEdit();
 
     } catch (err) {
         console.error('Undo failed:', err);
@@ -271,6 +259,41 @@ async function handleUndo() {
         spinner.style.display = 'none';
         undoButton.disabled = false;
     }
+}
+
+function undoEdit() {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/edit';
+
+    // Add session ID first
+    const sessionInput = document.createElement('input');
+    sessionInput.type = 'hidden';
+    sessionInput.name = 'session_id';
+    sessionInput.value = window.SESSION_ID;
+    form.appendChild(sessionInput);
+    console.log('Sending session_id in undo:', window.SESSION_ID);
+
+    const imageInput = document.createElement('input');
+    imageInput.type = 'hidden';
+    imageInput.name = 'image';
+    imageInput.value = window.imageData;
+    form.appendChild(imageInput);
+
+    const countInput = document.createElement('input');
+    countInput.type = 'hidden';
+    countInput.name = 'edit_count';
+    countInput.value = window.editCount;
+    form.appendChild(countInput);
+
+    const styleInput = document.createElement('input');
+    styleInput.type = 'hidden';
+    styleInput.name = 'style';
+    styleInput.value = window.initialStyle;
+    form.appendChild(styleInput);
+
+    document.body.appendChild(form);
+    form.submit();
 }
 
 async function createMaskFromCanvas() {
