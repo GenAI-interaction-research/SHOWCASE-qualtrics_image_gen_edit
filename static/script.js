@@ -265,16 +265,20 @@ async function handleUndo() {
     }
 }
 
+// Helper function to update edit count display
+function updateEditCountDisplay() {
+    const editCountDisplay = document.querySelector('h1.text-2xl');
+    if (editCountDisplay) {
+        editCountDisplay.textContent = `Edit ${window.editCount}`;
+    }
+}
+
 async function undoEdit(previousVersion) {
     try {
-        window.editCount++;  // Increment the counter
-        const editCountDisplay = document.querySelector('h1.text-2xl');
-        if (editCountDisplay) {
-            editCountDisplay.textContent = `Edit ${window.editCount}`;
-        }
-
         // Update window variables
         window.imageData = previousVersion.imageData;
+        window.editCount++;  // Increment the counter
+        updateEditCountDisplay();  // Update display
 
         // Update the canvas with the previous image
         const img = await loadImage(previousVersion.imageData);
@@ -429,6 +433,7 @@ async function submitEdit() {
         const formData = new FormData();
         formData.append('image', compressedBase64);
         window.editCount++;  // Increment before sending
+        updateEditCountDisplay();  // Update display
         formData.append('edit_count', window.editCount);
         formData.append('mode', mode);
         formData.append('session_id', window.SESSION_ID);
