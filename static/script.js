@@ -18,19 +18,14 @@ class ImageHistory {
     addVersion(imageData, editCount) {
         try {
             let history = this.getHistory();
-            
-            // Add new version
             history.push({
                 imageData,
                 editCount,
                 timestamp: Date.now()
             });
-
-            // Keep only last N versions
             if (history.length > this.maxSize) {
                 history = history.slice(-this.maxSize);
             }
-
             localStorage.setItem(this.storageKey, JSON.stringify(history));
             this.updateUndoButton();
         } catch (error) {
@@ -41,15 +36,10 @@ class ImageHistory {
     undo() {
         try {
             let history = this.getHistory();
-            if (history.length === 0) {
-                return null;
-            }
-
+            if (history.length === 0) return null;
             const lastVersion = history.pop();
             localStorage.setItem(this.storageKey, JSON.stringify(history));
-            
             this.updateUndoButton();
-            
             return {
                 imageData: lastVersion.imageData,
                 editCount: lastVersion.editCount,
@@ -138,49 +128,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (spinner) spinner.style.display = 'none';
     if (errorDiv) errorDiv.classList.add('hidden');
 
-    try {
-        const initListener = (id, event, fn) => {
-            const el = document.getElementById(id);
-            if (el) el.addEventListener(event, fn);
-            else console.error(`Element ${id} not found`);
-        };
+    const initListener = (id, event, fn) => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener(event, fn);
+        else console.error(`Element ${id} not found`);
+    };
 
-        initListener('lassoButton', 'click', toggleDrawing);
-        initListener('clearButton', 'click', clearSelection);
-        initListener('applyEditButton', 'click', submitEdit);
-        initListener('undoButton', 'click', handleUndo);
+    initListener('lassoButton', 'click', toggleDrawing);
+    initListener('clearButton', 'click', clearSelection);
+    initListener('applyEditButton', 'click', submitEdit);
+    initListener('undoButton', 'click', handleUndo);
 
-        historyManager.updateUndoButton();
+    historyManager.updateUndoButton();
 
-        const tabs = document.querySelectorAll('[data-mode]');
-        const sections = {
-            prompt: document.getElementById('promptSection'),
-            instructions: {
-                inpaint: document.getElementById('inpaintInstructions'),
-                cleanup: document.getElementById('cleanupInstructions'),
-                reimagine: document.getElementById('reimagineInstructions'),
-                replacebg: document.getElementById('replaceBgInstructions')
+    const tabs = document.querySelectorAll('[data-mode]');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            activateTab(tab);
+            if (tab.dataset.mode === 'reimagine') {
+                document.getElementById('prompt').value = '';
             }
-        };
-
-        const initialMode = window.initialMode || 'inpaint';
-        let activeTab = document.querySelector(`[data-mode="${initialMode}"]`);
-        if (!activeTab) activeTab = document.querySelector('[data-mode]');
-        if (activeTab) activateTab(activeTab);
-
-        tabs.forEach(tab => {
-            tab.addEventListener('click', () => {
-                activateTab(tab);
-                if (tab.dataset.mode === 'reimagine') {
-                    document.getElementById('prompt').value = '';
-                }
-            });
         });
+    });
 
-    } catch (error) {
-        console.error('Initialization error:', error);
-        showError('Error initializing editor. Please refresh.');
-    }
+    const initialMode = window.initialMode || 'inpaint';
+    let activeTab = document.querySelector(`[data-mode="${initialMode}"]`);
+    if (!activeTab) activeTab = document.querySelector('[data-mode]');
+    if (activeTab) activateTab(activeTab);
 });
 
 function activateTab(tab) {
@@ -207,6 +181,7 @@ function updateUIForMode(mode) {
         'replacebg': 'Change background',
         'reimagine': 'Reimagine image'
     };
+    
     const applyButton = document.getElementById('applyEditButton');
     if (applyButton) applyButton.textContent = buttonTexts[mode] || 'Apply Changes';
     
@@ -339,26 +314,40 @@ async function createMaskFromCanvas() {
     });
 }
 
-// Function to send data back to Qualtrics via postMessage
-function sendToQualtrics(imageData) {
-    try {
-        // Send the image data to Qualtrics
-        window.parent.postMessage({
-            action: 'setEmbeddedData',
-            key: 'lastGeneratedImage',
-            value: imageData
-        }, '*');
+function loadImage(src) {
+    return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.src = src;
+    });
+}
 
-        // Enable the continue button in Qualtrics
-        window.parent.postMessage({
-            action: 'enableContinue',
-            completed: true
-        }, '*');
-
-        console.log('Image data sent to Qualtrics');
-    } catch (error) {
-        console.error('Error sending data to Qualtrics:', error);
+async function compressImage(blob, maxSize = 800, quality = 0.8) {
+    const img = await loadImage(URL.createObjectURL(blob));
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    let width = img.width;
+    let height = img.height;
+    if (width > height && width > maxSize) {
+        height *= maxSize / width;
+        width = maxSize;
+    } else if (height > maxSize) {
+        width *= maxSize / height;
+        height = maxSize;
     }
+    
+    canvas.width = width;
+    canvas.height = height;
+    ctx.drawImage(img, 0, 0, width, height);
+    
+    return new Promise(resolve => {
+        canvas.toBlob(blob => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.readAsDataURL(blob);
+        }, 'image/jpeg', quality);
+    });
 }
 
 async function submitEdit() {
@@ -432,25 +421,38 @@ async function submitEdit() {
         const editedBlob = await response.blob();
         const compressedBase64 = await compressImage(editedBlob, 800, 0.8);
 
-        // After successful edit, send to Qualtrics if we've reached 4 or more edits
+        // After successful edit, save to Cloudinary and send to Qualtrics if we've reached 4 or more edits
         if (window.editCount >= 3) {
             try {
-                // Send the image data to Qualtrics
+                // Save to Cloudinary with PROLIFIC_PID
+                const uploadResponse = await fetch('/save-final-image', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        imageData: compressedBase64,
+                        prolificId: window.PROLIFIC_PID
+                    })
+                });
+
+                const uploadResult = await uploadResponse.json();
+                console.log('Cloudinary upload result:', uploadResult);
+
+                // Send to Qualtrics
                 window.parent.postMessage({
                     action: 'setEmbeddedData',
-                    key: 'lastGeneratedImage',
+                    key: 'Base64',
                     value: compressedBase64
                 }, '*');
 
-                // Enable the continue button in Qualtrics
                 window.parent.postMessage({
                     action: 'enableContinue',
                     completed: true
                 }, '*');
 
-                console.log('Image data sent to Qualtrics');
             } catch (error) {
-                console.error('Error sending data to Qualtrics:', error);
+                console.error('Error saving to Cloudinary:', error);
             }
         }
 
@@ -489,42 +491,6 @@ async function submitEdit() {
         }
         if (spinner) spinner.style.display = 'none';
     }
-}
-
-function loadImage(src) {
-    return new Promise(resolve => {
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.src = src;
-    });
-}
-
-async function compressImage(blob, maxSize = 800, quality = 0.8) {
-    const img = await loadImage(URL.createObjectURL(blob));
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    
-    let width = img.width;
-    let height = img.height;
-    if (width > height && width > maxSize) {
-        height *= maxSize / width;
-        width = maxSize;
-    } else if (height > maxSize) {
-        width *= maxSize / height;
-        height = maxSize;
-    }
-    
-    canvas.width = width;
-    canvas.height = height;
-    ctx.drawImage(img, 0, 0, width, height);
-    
-    return new Promise(resolve => {
-        canvas.toBlob(blob => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.readAsDataURL(blob);
-        }, 'image/jpeg', quality);
-    });
 }
 
 function showError(message) {

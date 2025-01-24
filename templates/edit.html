@@ -77,7 +77,7 @@
                 </div>
             </div>
             
-            <!-- Updated Instructions -->
+            <!-- Instructions -->
             <div id="inpaintInstructions" class="bg-blue-50 p-4 rounded-lg mb-6 {% if mode != 'inpaint' %}hidden{% endif %}">
                 <h2 class="text-lg font-semibold mb-2">Text Inpainting:</h2>
                 <ol class="list-decimal list-inside space-y-2 text-gray-700">
@@ -189,6 +189,7 @@
         window.editCount = parseInt("{{ edit_count }}");
         window.initialStyle = "{{ style }}";
         window.initialMode = "{{ mode }}";
+        window.PROLIFIC_PID = new URLSearchParams(window.location.search).get('PROLIFIC_PID');
     </script>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
