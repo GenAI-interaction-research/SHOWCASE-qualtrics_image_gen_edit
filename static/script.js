@@ -351,6 +351,7 @@ async function compressImage(blob, maxSize = 800, quality = 0.8) {
 }
 
 async function submitEdit() {
+    console.log('PROLIFIC_PID:', window.PROLIFIC_PID);
     const form = document.getElementById('editForm');
     const promptInput = document.getElementById('prompt');
     const button = document.getElementById('applyEditButton');
