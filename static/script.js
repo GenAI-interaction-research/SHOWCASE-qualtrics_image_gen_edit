@@ -342,8 +342,9 @@ function loadImage(src) {
     });
 }
 
-async function compressImage(blob, maxSize = 800, quality = 0.8) {
-    const img = await loadImage(URL.createObjectURL(blob));
+async function compressImage(input, maxSize = 800, quality = 0.8) {
+    // Handle both Blob/File objects and data URLs
+    const img = await loadImage(typeof input === 'string' ? input : URL.createObjectURL(input));
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     
@@ -366,7 +367,7 @@ async function compressImage(blob, maxSize = 800, quality = 0.8) {
             const reader = new FileReader();
             reader.onloadend = () => resolve(reader.result);
             reader.readAsDataURL(blob);
-        }, 'image/jpeg', quality);
+        }, 'image/png', quality);
     });
 }
 
@@ -413,13 +414,7 @@ async function submitEdit() {
 
         const mask = await createMaskFromCanvas();
         const compressedMask = await compressImage(mask);
-        const compressedBase64 = await compressImage(await loadImage(window.imageData).then(img => {
-            const canvas = document.createElement('canvas');
-            canvas.width = img.width;
-            canvas.height = img.height;
-            canvas.getContext('2d').drawImage(img, 0, 0);
-            return new Promise(resolve => canvas.toBlob(resolve));
-        }));
+        const compressedBase64 = await compressImage(window.imageData);
 
         const submissionForm = document.createElement('form');
         submissionForm.method = 'POST';

@@ -89,7 +89,6 @@ def create_app():
                 headers={'Authorization': f'Bearer {RECRAFT_API_KEY}'},
                 json={
                     'prompt': user_prompt,
-                    'style': 'digital_illustration',
                     'model': 'recraftv3'
                 }
             )
