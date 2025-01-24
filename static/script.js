@@ -283,7 +283,7 @@ function undoEdit() {
     const countInput = document.createElement('input');
     countInput.type = 'hidden';
     countInput.name = 'edit_count';
-    countInput.value = window.editCount;
+    countInput.value = window.editCount + 1;  // Increment edit count
     form.appendChild(countInput);
 
     const styleInput = document.createElement('input');
