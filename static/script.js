@@ -119,6 +119,7 @@ function initializePaperCanvas() {
         }
     };
 }
+
 document.addEventListener('DOMContentLoaded', async () => {
     historyManager = new ImageHistory();
     initializePaperCanvas();
@@ -129,13 +130,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (spinner) spinner.style.display = 'none';
     if (errorDiv) errorDiv.classList.add('hidden');
     if (undoButton) {
-        undoButton.classList.add('hidden'); // Hide undo button by default
+        undoButton.classList.add('hidden');
     }
 
     const initListener = (id, event, fn) => {
         const el = document.getElementById(id);
         if (el) el.addEventListener(event, fn);
-        else console.error(`Element ${id} not found`);
     };
 
     initListener('lassoButton', 'click', toggleDrawing);
@@ -155,7 +155,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
-    const initialMode = window.initialMode || 'inpaint';
+    const initialMode = 'inpaint';
     let activeTab = document.querySelector(`[data-mode="${initialMode}"]`);
     if (!activeTab) activeTab = document.querySelector('[data-mode]');
     if (activeTab) activateTab(activeTab);
@@ -399,7 +399,7 @@ async function submitEdit() {
             const prompt = promptInput.value.trim();
             if (!prompt) {
                 throw new Error(mode === 'inpaint' 
-                    ? 'Please describe what should appear in selected areas'
+                    ? 'Please describe what should appear in selected areas' 
                     : 'Please describe the new background');
             }
         }
@@ -408,108 +408,20 @@ async function submitEdit() {
             throw new Error('Please make a selection first');
         }
 
-        form.classList.add('loading');
         button.disabled = true;
-        button.textContent = 'Processing...';
+        form.classList.add('loading');
         errorDiv.classList.add('hidden');
         spinner.style.display = 'block';
 
-        const formData = new FormData();
-        formData.append('image', window.imageData);
-        formData.append('mode', mode);
-
-        if (mode === 'replacebg') {
-            formData.append('prompt', promptInput.value.trim());
-        } else if (mode === 'inpaint') {
-            const maskBlob = await createMaskFromCanvas();
-            formData.append('mask', maskBlob);
-            formData.append('prompt', promptInput.value.trim());
-        } else if (mode === 'cleanup') {
-            const maskBlob = await createMaskFromCanvas();
-            formData.append('mask', maskBlob);
-        }
-
-        const response = await fetch('/direct-modification', {
-            method: 'POST',
-            headers: {
-                'X-SESSION-ID': window.SESSION_ID
-            },
-            body: formData
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(errorText || 'Request failed');
-        }
-
-        const editedBlob = await response.blob();
-        const compressedBase64 = await compressImage(editedBlob, 800, 0.8);
-
-        // After successful edit, save to Cloudinary and send to Qualtrics if we've reached 4 or more edits
-        if (window.editCount >= 3) {
-            try {
-                console.log('SESSION_ID:', window.SESSION_ID);
-                
-                // Wait for SESSION_ID if not available
-                if (!window.SESSION_ID) {
-                    console.log('Waiting for SESSION_ID...');
-                    await new Promise((resolve) => {
-                        const checkID = setInterval(() => {
-                            if (window.SESSION_ID) {
-                                clearInterval(checkID);
-                                resolve();
-                            }
-                        }, 100);
-                        // Timeout after 5 seconds
-                        setTimeout(() => {
-                            clearInterval(checkID);
-                            resolve();
-                        }, 5000);
-                    });
-                    console.log('SESSION_ID after waiting:', window.SESSION_ID);
-                }
-
-                if (!window.SESSION_ID) {
-                    throw new Error('SESSION_ID not available');
-                }
-
-                // Save to Cloudinary with SESSION_ID
-                const uploadResponse = await fetch('/save-final-image', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        image: compressedBase64,
-                        session_id: window.SESSION_ID
-                    })
-                });
-
-                const uploadResult = await uploadResponse.json();
-                console.log('Cloudinary upload result:', uploadResult);
-
-                if (!uploadResult.success) {
-                    throw new Error(uploadResult.error || 'Failed to upload to Cloudinary');
-                }
-
-                // Send to Qualtrics
-                window.parent.postMessage({
-                    action: 'setEmbeddedData',
-                    key: 'Base64',
-                    value: compressedBase64
-                }, '*');
-
-                window.parent.postMessage({
-                    action: 'enableContinue',
-                    completed: true
-                }, '*');
-
-            } catch (error) {
-                console.error('Error saving to Cloudinary:', error);
-                showError('Failed to save final image: ' + error.message);
-                return;
-            }
-        }
+        const mask = await createMaskFromCanvas();
+        const compressedMask = await compressImage(mask);
+        const compressedBase64 = await compressImage(await loadImage(window.imageData).then(img => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            canvas.getContext('2d').drawImage(img, 0, 0);
+            return new Promise(resolve => canvas.toBlob(resolve));
+        }));
 
         const submissionForm = document.createElement('form');
         submissionForm.method = 'POST';
@@ -520,6 +432,14 @@ async function submitEdit() {
             <input type="hidden" name="mode" value="${mode}">
             <input type="hidden" name="session_id" value="${window.SESSION_ID}">
         `;
+        
+        if (['inpaint', 'replacebg'].includes(mode)) {
+            submissionForm.innerHTML += `
+                <input type="hidden" name="prompt" value="${promptInput.value}">
+                <input type="hidden" name="mask" value="${compressedMask}">
+            `;
+        }
+        
         document.body.appendChild(submissionForm);
         submissionForm.submit();
 
