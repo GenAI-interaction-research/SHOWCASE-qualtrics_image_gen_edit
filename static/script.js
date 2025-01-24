@@ -488,9 +488,19 @@ async function submitEdit() {
         paper.view.draw();
         console.log('Canvas updated');
 
+        // Convert blob URL to base64 for Cloudinary
+        console.log('Converting to base64...');
+        const response2 = await fetch(url);
+        const blob2 = await response2.blob();
+        const reader = new FileReader();
+        const base64Data = await new Promise((resolve) => {
+            reader.onloadend = () => resolve(reader.result);
+            reader.readAsDataURL(blob2);
+        });
+        
         // Save the edited image to Cloudinary
         console.log('Saving to Cloudinary...');
-        await saveToCloudinary(url);
+        await saveToCloudinary(base64Data);
         console.log('Saved to Cloudinary');
 
     } catch (error) {
