@@ -208,6 +208,14 @@
                 form.method = 'POST';
                 form.action = '/edit';
 
+                // Add session ID first to ensure it's included
+                const sessionInput = document.createElement('input');
+                sessionInput.type = 'hidden';
+                sessionInput.name = 'session_id';
+                sessionInput.value = window.SESSION_ID;  // Use the global SESSION_ID
+                form.appendChild(sessionInput);
+                console.log('Sending session_id to edit:', window.SESSION_ID);
+
                 const imageInput = document.createElement('input');
                 imageInput.type = 'hidden';
                 imageInput.name = 'image';
@@ -226,22 +234,8 @@
                 styleInput.value = document.getElementById('style').value;
                 form.appendChild(styleInput);
 
-                // Add session ID to form data
-                const sessionInput = document.createElement('input');
-                sessionInput.type = 'hidden';
-                sessionInput.name = 'session_id';
-                sessionInput.value = window.SESSION_ID;
-                form.appendChild(sessionInput);
-
-                const prolificInput = document.createElement('input');
-                prolificInput.type = 'hidden';
-                prolificInput.name = 'PROLIFIC_PID';
-                prolificInput.value = window.PROLIFIC_PID;
-                form.appendChild(prolificInput);
-
                 document.body.appendChild(form);
                 form.submit();
-                document.body.removeChild(form);
             }
         });
     </script>

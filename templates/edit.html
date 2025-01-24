@@ -191,17 +191,26 @@
        window.initialStyle = "{{ style }}";
        window.initialMode = "{{ mode }}";
        window.SESSION_ID = "{{ session_id }}";
-       console.log('Session ID from template:', window.SESSION_ID);
+       console.log('Session ID in edit.html:', window.SESSION_ID);
         
-       // Confirm session ID is stored in Qualtrics
-       window.parent.postMessage({
-           action: 'setEmbeddedData',
-           key: 'SESSION_ID',
-           value: window.SESSION_ID
-       }, '*');
+       // Only send to Qualtrics if we have a valid session ID
+       if (window.SESSION_ID) {
+           window.parent.postMessage({
+               action: 'setEmbeddedData',
+               key: 'SESSION_ID',
+               value: window.SESSION_ID
+           }, '*');
+           console.log('Sent session ID to Qualtrics:', window.SESSION_ID);
+       } else {
+           console.error('No session ID available in edit.html');
+       }
 
        // Use SESSION_ID when saving to Cloudinary
        async function saveToCloudinary(imageData) {
+           if (!window.SESSION_ID) {
+               throw new Error('No session ID available for saving to Cloudinary');
+           }
+
            try {
                const response = await fetch('/save-final-image', {
                    method: 'POST',

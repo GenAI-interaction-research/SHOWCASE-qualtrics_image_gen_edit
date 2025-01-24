@@ -119,7 +119,9 @@ def create_app():
            edit_count = request.form.get('edit_count', 1)
            style = request.form.get('style', '')
            mode = request.form.get('mode', '')
-           prolific_id = session.get('PROLIFIC_PID', '')
+           session_id = request.form.get('session_id', '')
+            
+           logger.info(f"Edit route received session_id: {session_id}")
 
            if not image_data:
                return jsonify({'success': False, 'error': 'No image data provided'}), 400
@@ -134,7 +136,7 @@ def create_app():
                               edit_count=edit_count,
                               style=style,
                               mode=mode,
-                              prolific_id=prolific_id)
+                              session_id=session_id)  # Pass session_id to template
 
        except Exception as e:
            logger.error(f"Edit error: {str(e)}")
