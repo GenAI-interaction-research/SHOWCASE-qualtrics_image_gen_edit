@@ -179,10 +179,10 @@ function updateUIForMode(mode) {
     const isReplaceBg = mode === 'replacebg';
     
     const buttonTexts = {
-        'inpaint': 'Add changes',
-        'cleanup': 'Remove parts',
-        'replacebg': 'Change background',
-        'reimagine': 'Reimagine image'
+        'inpaint': 'Add Elements',
+        'cleanup': 'Remove Elements',
+        'replacebg': 'Change Background',
+        'reimagine': 'Reimagine Image'
     };
     
     const applyButton = document.getElementById('applyEditButton');
@@ -303,6 +303,34 @@ async function undoEdit(previousVersion) {
 
         // Clear any existing paths
         paths = [];
+        
+        // Save to Cloudinary
+        console.log('Converting to base64 for Cloudinary...');
+        const response = await fetch(previousVersion.imageData);
+        const blob = await response.blob();
+        const reader = new FileReader();
+        const base64Data = await new Promise((resolve) => {
+            reader.onloadend = () => resolve(reader.result);
+            reader.readAsDataURL(blob);
+        });
+
+        // Save to Cloudinary
+        console.log('Saving to Cloudinary...');
+        const formData = new FormData();
+        formData.append('image', base64Data);
+        formData.append('edit_count', window.editCount);
+        formData.append('session_id', window.SESSION_ID);
+
+        const cloudinaryResponse = await fetch('/save-to-cloudinary', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!cloudinaryResponse.ok) {
+            console.error('Failed to save to Cloudinary:', await cloudinaryResponse.text());
+        } else {
+            console.log('Saved to Cloudinary');
+        }
         
         console.log('Canvas updated with previous version');
     } catch (error) {
@@ -516,10 +544,10 @@ async function submitEdit() {
             const currentTab = document.querySelector('[data-mode].border-blue-500');
             if (currentTab) {
                 const buttonTexts = {
-                    'inpaint': 'Add changes',
-                    'cleanup': 'Remove parts',
-                    'replacebg': 'Change background',
-                    'reimagine': 'Reimagine image'
+                    'inpaint': 'Add Elements',
+                    'cleanup': 'Remove Elements',
+                    'replacebg': 'Change Background',
+                    'reimagine': 'Reimagine Image'
                 };
                 button.textContent = buttonTexts[currentTab.dataset.mode] || 'Apply Changes';
             }
