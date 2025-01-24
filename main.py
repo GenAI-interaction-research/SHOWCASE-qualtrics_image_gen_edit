@@ -18,12 +18,42 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 STYLE_PROMPTS = {
-   "realistic": "hyper-realistic, 8k resolution, detailed textures, realistic lighting, photorealistic",
-   "cyberpunk": "cyberpunk style, neon lights, futuristic cityscape, rain effects, cinematic lighting",
-   "oilpainting": "oil painting texture, brush strokes visible, classical art style, canvas texture",
-   "anime": "anime style, vibrant colors, cel-shaded, studio ghibli aesthetic", 
-   "digitalart": "concept art, digital painting, trending on artstation, sharp details",
-   "pixelart": "pixel art, 8-bit style, retro gaming aesthetics, low resolution"
+    "realistic": (
+        "ultra-realistic photography, 8k resolution, f/1.8 aperture, natural lighting, "
+        "detailed textures, depth of field, cinematic composition, photorealistic, "
+        "fabric texture, environmental reflections, "
+        "DSLR photography, sharp focus"
+    ),
+    "cyberpunk": (
+        "cyberpunk neon-noir, rain-washed streets, holographic advertisements, "
+        "futuristic megacity, glowing neon signs, dystopian atmosphere, "
+        "cinematic lighting, chromatic aberration, retro-futuristic technology, "
+        "steam rising from vents, synthwave color palette"
+    ),
+    "oilpainting": (
+        "impasto oil painting, visible brush strokes, baroque era style, "
+        "Rembrandt lighting, chiaroscuro technique, canvas texture visible, "
+        "rich oil pigments, classical composition, Old Masters aesthetic, "
+        "warm earthy tones, glazing technique"
+    ),
+    "anime": (
+        "Studio Ghibli aesthetic, Makoto Shinkai-style landscapes, "
+        "cel-shaded animation, vibrant color gradients, dramatic sky clouds, "
+        "expressive character eyes, soft glow effects, detailed linework, "
+        "anime key visual art, atmospheric perspective"
+    ),
+    "digitalart": (
+        "trending on ArtStation, Unreal Engine 5 render, octane rendering, "
+        "concept art composition, intricate details, dramatic lighting, "
+        "hyper-detailed textures, fantasy realism, dynamic pose, "
+        "volumetric lighting, post-processing effects"
+    ),
+    "pixelart": (
+        "retro 16-bit arcade style, CRT screen effect, dithering patterns, "
+        "limited color palette, low-resolution sprites, scanlines overlay, "
+        "NES/SNES era aesthetics, chiptune color scheme, "
+        "parallax scrolling background, vintage gaming nostalgia"
+    )
 }
 
 def build_full_prompt(user_prompt, style=None):
