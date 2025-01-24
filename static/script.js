@@ -429,10 +429,15 @@ async function submitEdit() {
         formData.append('mode', mode);
         formData.append('session_id', window.SESSION_ID);
         
-        if (['inpaint', 'replacebg'].includes(mode)) {
-            formData.append('prompt', promptInput.value);
-            // Convert base64 mask to blob
-            const maskBlob = await fetch(compressedMask).then(r => r.blob());
+        // Add mask for modes that need it
+        if (['inpaint', 'replacebg', 'cleanup'].includes(mode)) {
+            // Add prompt for modes that need it
+            if (['inpaint', 'replacebg'].includes(mode)) {
+                formData.append('prompt', promptInput.value);
+            }
+            
+            // Create and append mask
+            const maskBlob = await fetch(mask).then(r => r.blob());
             formData.append('mask', maskBlob, 'mask.png');
         }
         
