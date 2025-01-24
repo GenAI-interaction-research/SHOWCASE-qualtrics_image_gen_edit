@@ -314,16 +314,17 @@ async function undoEdit(previousVersion) {
             reader.readAsDataURL(blob);
         });
 
-        // Save to Cloudinary
+        // Save to Cloudinary using save-final-image endpoint
         console.log('Saving to Cloudinary...');
-        const formData = new FormData();
-        formData.append('image', base64Data);
-        formData.append('edit_count', window.editCount);
-        formData.append('session_id', window.SESSION_ID);
-
-        const cloudinaryResponse = await fetch('/save-to-cloudinary', {
+        const cloudinaryResponse = await fetch('/save-final-image', {
             method: 'POST',
-            body: formData
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                image: base64Data,
+                session_id: window.SESSION_ID
+            })
         });
 
         if (!cloudinaryResponse.ok) {
