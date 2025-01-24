@@ -483,7 +483,7 @@ async function submitEdit() {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        imageData: compressedBase64,
+                        image: compressedBase64,
                         session_id: window.SESSION_ID
                     })
                 });
