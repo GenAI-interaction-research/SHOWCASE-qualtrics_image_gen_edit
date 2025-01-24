@@ -271,6 +271,19 @@ function updateEditCountDisplay() {
     if (editCountDisplay) {
         editCountDisplay.textContent = `Edit ${window.editCount}`;
     }
+    checkEditThresholdAndNotifyQualtrics();
+}
+
+// Helper function to check if enough edits have been made and notify Qualtrics
+function checkEditThresholdAndNotifyQualtrics() {
+    const editCount = parseInt(document.getElementById('editCount').textContent);
+    if (editCount >= 3) {
+        // Notify Qualtrics that enough edits have been made
+        window.parent.postMessage({
+            action: 'enableContinue',
+            completed: true
+        }, '*');
+    }
 }
 
 async function undoEdit(previousVersion) {
