@@ -387,6 +387,7 @@ async function submitEdit() {
         const activeTab = document.querySelector('[data-mode].border-blue-500');
         if (!activeTab) throw new Error('No editing mode selected');
         const mode = activeTab.dataset.mode;
+        console.log('Selected mode:', mode);
 
         historyManager.addVersion(window.imageData, window.editCount);
 
@@ -401,6 +402,7 @@ async function submitEdit() {
                     ? 'Please describe what should appear in selected areas' 
                     : 'Please describe the new background');
             }
+            console.log('Prompt:', prompt);
         }
         
         if (paths.length === 0 && !['reimagine', 'replacebg'].includes(mode)) {
@@ -412,29 +414,57 @@ async function submitEdit() {
         errorDiv.classList.add('hidden');
         spinner.style.display = 'block';
 
+        console.log('Creating mask and compressing images...');
         const mask = await createMaskFromCanvas();
+        console.log('Mask created');
         const compressedMask = await compressImage(mask);
+        console.log('Mask compressed');
         const compressedBase64 = await compressImage(window.imageData);
+        console.log('Image compressed');
 
-        const submissionForm = document.createElement('form');
-        submissionForm.method = 'POST';
-        submissionForm.action = '/edit';
-        submissionForm.innerHTML = `
-            <input type="hidden" name="image" value="${compressedBase64}">
-            <input type="hidden" name="edit_count" value="${window.editCount + 1}">
-            <input type="hidden" name="mode" value="${mode}">
-            <input type="hidden" name="session_id" value="${window.SESSION_ID}">
-        `;
+        // Create FormData
+        const formData = new FormData();
+        formData.append('image', compressedBase64);
+        formData.append('edit_count', window.editCount + 1);
+        formData.append('mode', mode);
+        formData.append('session_id', window.SESSION_ID);
         
         if (['inpaint', 'replacebg'].includes(mode)) {
-            submissionForm.innerHTML += `
-                <input type="hidden" name="prompt" value="${promptInput.value}">
-                <input type="hidden" name="mask" value="${compressedMask}">
-            `;
+            formData.append('prompt', promptInput.value);
+            // Convert base64 mask to blob
+            const maskBlob = await fetch(compressedMask).then(r => r.blob());
+            formData.append('mask', maskBlob, 'mask.png');
         }
         
-        document.body.appendChild(submissionForm);
-        submissionForm.submit();
+        console.log('Sending request to server...');
+        // Use fetch API
+        const response = await fetch('/direct-modification', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to process image');
+        }
+        
+        console.log('Processing response...');
+        // Handle the modified image
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        window.imageData = url;
+        window.editCount++;
+        
+        console.log('Updating canvas...');
+        // Refresh the canvas with the new image
+        const img = await loadImage(url);
+        paper.project.clear();
+        raster = new paper.Raster(img);
+        const scale = Math.min(paper.view.viewSize.width / img.width, paper.view.viewSize.height / img.height);
+        raster.scale(scale);
+        raster.position = paper.view.center;
+        paper.view.draw();
+        console.log('Canvas updated');
 
     } catch (error) {
         console.error('Edit failed:', error);
