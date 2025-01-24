@@ -267,9 +267,14 @@ async function handleUndo() {
 
 async function undoEdit(previousVersion) {
     try {
+        window.editCount++;  // Increment the counter
+        const editCountDisplay = document.querySelector('h1.text-2xl');
+        if (editCountDisplay) {
+            editCountDisplay.textContent = `Edit ${window.editCount}`;
+        }
+
         // Update window variables
         window.imageData = previousVersion.imageData;
-        window.editCount++;
 
         // Update the canvas with the previous image
         const img = await loadImage(previousVersion.imageData);
@@ -423,7 +428,8 @@ async function submitEdit() {
         // Create FormData
         const formData = new FormData();
         formData.append('image', compressedBase64);
-        formData.append('edit_count', window.editCount + 1);
+        window.editCount++;  // Increment before sending
+        formData.append('edit_count', window.editCount);
         formData.append('mode', mode);
         formData.append('session_id', window.SESSION_ID);
         
@@ -453,7 +459,6 @@ async function submitEdit() {
         const blob = await response.blob();
         const url = URL.createObjectURL(blob);
         window.imageData = url;
-        window.editCount++;
         
         console.log('Updating canvas...');
         // Refresh the canvas with the new image
