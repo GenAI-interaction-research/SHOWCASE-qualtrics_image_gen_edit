@@ -119,7 +119,6 @@ function initializePaperCanvas() {
         }
     };
 }
-
 document.addEventListener('DOMContentLoaded', async () => {
     historyManager = new ImageHistory();
     initializePaperCanvas();
@@ -260,6 +259,7 @@ async function handleUndo() {
         console.error('Undo failed:', err);
         errorDiv.textContent = err.message || 'Failed to undo last edit';
         errorDiv.classList.remove('hidden');
+    } finally {
         spinner.style.display = 'none';
         undoButton.disabled = false;
     }
@@ -270,13 +270,11 @@ function undoEdit() {
     form.method = 'POST';
     form.action = '/edit';
 
-    // Add session ID first
     const sessionInput = document.createElement('input');
     sessionInput.type = 'hidden';
     sessionInput.name = 'session_id';
     sessionInput.value = window.SESSION_ID;
     form.appendChild(sessionInput);
-    console.log('Sending session_id in undo:', window.SESSION_ID);
 
     const imageInput = document.createElement('input');
     imageInput.type = 'hidden';
@@ -287,7 +285,7 @@ function undoEdit() {
     const countInput = document.createElement('input');
     countInput.type = 'hidden';
     countInput.name = 'edit_count';
-    countInput.value = window.editCount + 1;  // Increment edit count
+    countInput.value = window.editCount + 1;
     form.appendChild(countInput);
 
     document.body.appendChild(form);
