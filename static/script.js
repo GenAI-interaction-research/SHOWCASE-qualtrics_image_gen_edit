@@ -253,7 +253,7 @@ async function handleUndo() {
             throw new Error('No history available');
         }
 
-        undoEdit();
+        await undoEdit(previousVersion);
 
     } catch (err) {
         console.error('Undo failed:', err);
@@ -265,31 +265,37 @@ async function handleUndo() {
     }
 }
 
-function undoEdit() {
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = '/edit';
+async function undoEdit(previousVersion) {
+    try {
+        // Update window variables
+        window.imageData = previousVersion.imageData;
+        window.editCount++;
 
-    const sessionInput = document.createElement('input');
-    sessionInput.type = 'hidden';
-    sessionInput.name = 'session_id';
-    sessionInput.value = window.SESSION_ID;
-    form.appendChild(sessionInput);
+        // Update the canvas with the previous image
+        const img = await loadImage(previousVersion.imageData);
+        paper.project.clear();
+        raster = new paper.Raster(img);
+        const scale = Math.min(paper.view.viewSize.width / img.width, paper.view.viewSize.height / img.height);
+        raster.scale(scale);
+        raster.position = paper.view.center;
+        paper.view.draw();
 
-    const imageInput = document.createElement('input');
-    imageInput.type = 'hidden';
-    imageInput.name = 'image';
-    imageInput.value = window.imageData;
-    form.appendChild(imageInput);
+        // Clear any existing paths
+        paths = [];
+        
+        console.log('Canvas updated with previous version');
+    } catch (error) {
+        console.error('Failed to restore previous version:', error);
+        showError('Failed to restore previous version');
+    }
+}
 
-    const countInput = document.createElement('input');
-    countInput.type = 'hidden';
-    countInput.name = 'edit_count';
-    countInput.value = window.editCount + 1;
-    form.appendChild(countInput);
-
-    document.body.appendChild(form);
-    form.submit();
+function loadImage(src) {
+    return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.src = src;
+    });
 }
 
 async function createMaskFromCanvas() {
@@ -331,14 +337,6 @@ async function createMaskFromCanvas() {
 
     return new Promise(resolve => {
         canvas.toBlob(blob => resolve(blob), 'image/png');
-    });
-}
-
-function loadImage(src) {
-    return new Promise(resolve => {
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.src = src;
     });
 }
 
