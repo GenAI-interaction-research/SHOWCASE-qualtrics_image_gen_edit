@@ -35,7 +35,7 @@
                 <div>
                     <label class="block text-sm font-medium mb-2">
                         Prompt
-                        <span class="block text-xs text-gray-500 mt-1">Enter your image generation prompt</span>
+                        <span class="block text-sm text-gray-700 mt-1">Please enter a detailed description of the image you want to generate. You can include style information (e.g., "oil painting", "digital art", "photograph") and the more details you provide, the better the generated image will be.</span>
                     </label>
                     <textarea
                         id="prompt"
@@ -59,6 +59,7 @@
             <div id="result" class="mt-8 hidden">
                 <h2 class="text-lg font-medium mb-4">Generated Image</h2>
                 <img id="generatedImage" class="w-full rounded-lg shadow mb-4" alt="Generated image">
+                <p class="text-gray-700 mb-4">If you like your generated image, please click below to continue to editing. If you do not like it, just generate a new one above.</p>
                 <button
                     id="editButton"
                     class="w-full bg-green-600 text-white p-3 rounded hover:bg-green-700 flex items-center justify-center mt-4"
