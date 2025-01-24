@@ -141,19 +141,34 @@ def create_app():
             style = request.form.get('style', '')
             if not image_data:
                 return jsonify({'success': False, 'error': 'No image data'}), 400
-            if ',' in image_data:
-                image_data = image_data.split(',')[1]
-            image_bytes = BytesIO(base64.b64decode(image_data))
-            mode = request.form.get('mode', 'inpaint')
+            
+            try:
+                # Handle base64 data URL format
+                if ',' in image_data:
+                    image_data = image_data.split(',')[1]
+                
+                # Decode base64 and ensure PNG format
+                image_bytes = BytesIO(base64.b64decode(image_data))
+                img = Image.open(image_bytes)
+                png_bytes = BytesIO()
+                img.save(png_bytes, format='PNG')
+                png_bytes.seek(0)
+                
+                mode = request.form.get('mode', 'inpaint')
+                logger.info(f"Processing image with mode: {mode}")
 
-            if mode == 'replacebg':
-                return handle_replace_background(image_bytes, style)
-            elif mode == 'cleanup':
-                return handle_cleanup(image_bytes)
-            elif mode == 'reimagine':
-                return handle_reimagine(image_bytes)
-            else:
-                return handle_inpainting(image_bytes, style)
+                if mode == 'replacebg':
+                    return handle_replace_background(png_bytes, style)
+                elif mode == 'cleanup':
+                    return handle_cleanup(png_bytes)
+                elif mode == 'reimagine':
+                    return handle_reimagine(png_bytes)
+                else:
+                    return handle_inpainting(png_bytes, style)
+            except Exception as e:
+                logger.error(f"Image processing error: {str(e)}")
+                return jsonify({'success': False, 'error': f"Image processing error: {str(e)}"}), 500
+                
         except Exception as e:
             logger.error(f"Processing error: {str(e)}")
             return jsonify({'success': False, 'error': str(e)}), 500
@@ -163,59 +178,78 @@ def create_app():
         if not user_prompt:
             return jsonify({'success': False, 'error': 'Missing background description'}), 400
         full_prompt = build_full_prompt(user_prompt, style)
-        response = requests.post(
-            'https://clipdrop-api.co/replace-background/v1',
-            files={'image_file': ('image.jpg', image_bytes, 'image/jpeg')},
-            data={'prompt': full_prompt},
-            headers={'x-api-key': CLIPDROP_API_KEY}
-        )
-        response.raise_for_status()
-        return Response(response.content, mimetype='image/png')
+        
+        try:
+            response = requests.post(
+                'https://clipdrop-api.co/replace-background/v1',
+                files={'image_file': ('image.png', image_bytes, 'image/png')},
+                data={'prompt': full_prompt},
+                headers={'x-api-key': CLIPDROP_API_KEY}
+            )
+            response.raise_for_status()
+            return Response(response.content, mimetype='image/png')
+        except requests.exceptions.RequestException as e:
+            logger.error(f"ClipDrop API error (replace-background): {str(e)}")
+            return jsonify({'success': False, 'error': f"API error: {str(e)}"}), 500
 
     def handle_cleanup(image_bytes):
         mask_file = request.files.get('mask')
         if not mask_file:
             return jsonify({'success': False, 'error': 'Missing mask'}), 400
         mask = ensure_grayscale_png(mask_file)
-        response = requests.post(
-            'https://clipdrop-api.co/cleanup/v1',
-            files={
-                'image_file': ('image.jpg', image_bytes, 'image/jpeg'),
-                'mask_file': ('mask.png', mask, 'image/png')
-            },
-            data={'mode': 'quality'},
-            headers={'x-api-key': CLIPDROP_API_KEY}
-        )
-        response.raise_for_status()
-        return Response(response.content, mimetype='image/png')
+        
+        try:
+            response = requests.post(
+                'https://clipdrop-api.co/cleanup/v1',
+                files={
+                    'image_file': ('image.png', image_bytes, 'image/png'),
+                    'mask_file': ('mask.png', mask, 'image/png')
+                },
+                data={'mode': 'quality'},
+                headers={'x-api-key': CLIPDROP_API_KEY}
+            )
+            response.raise_for_status()
+            return Response(response.content, mimetype='image/png')
+        except requests.exceptions.RequestException as e:
+            logger.error(f"ClipDrop API error (cleanup): {str(e)}")
+            return jsonify({'success': False, 'error': f"API error: {str(e)}"}), 500
 
     def handle_reimagine(image_bytes):
-        response = requests.post(
-            'https://clipdrop-api.co/reimagine/v1/reimagine',
-            files={'image_file': ('image.jpg', image_bytes, 'image/jpeg')},
-            headers={'x-api-key': CLIPDROP_API_KEY}
-        )
-        response.raise_for_status()
-        return Response(response.content, mimetype='image/png')
+        try:
+            response = requests.post(
+                'https://clipdrop-api.co/reimagine/v1/reimagine',
+                files={'image_file': ('image.png', image_bytes, 'image/png')},
+                headers={'x-api-key': CLIPDROP_API_KEY}
+            )
+            response.raise_for_status()
+            return Response(response.content, mimetype='image/png')
+        except requests.exceptions.RequestException as e:
+            logger.error(f"ClipDrop API error (reimagine): {str(e)}")
+            return jsonify({'success': False, 'error': f"API error: {str(e)}"}), 500
 
     def handle_inpainting(image_bytes, style):
         mask_file = request.files.get('mask')
         user_prompt = request.form.get('prompt')
         if not all([mask_file, user_prompt]):
             return jsonify({'success': False, 'error': 'Missing data'}), 400
-        full_prompt = build_full_prompt(user_prompt, style)
-        mask = ensure_grayscale_png(mask_file)
-        response = requests.post(
-            'https://clipdrop-api.co/text-inpainting/v1',
-            files={
-                'image_file': ('image.jpg', image_bytes, 'image/jpeg'),
-                'mask_file': ('mask.png', mask, 'image/png')
-            },
-            data={'text_prompt': full_prompt},
-            headers={'x-api-key': CLIPDROP_API_KEY}
-        )
-        response.raise_for_status()
-        return Response(response.content, mimetype='image/jpeg')
+        
+        try:
+            full_prompt = build_full_prompt(user_prompt, style)
+            mask = ensure_grayscale_png(mask_file)
+            response = requests.post(
+                'https://clipdrop-api.co/text-inpainting/v1',
+                files={
+                    'image_file': ('image.png', image_bytes, 'image/png'),
+                    'mask_file': ('mask.png', mask, 'image/png')
+                },
+                data={'text_prompt': full_prompt},
+                headers={'x-api-key': CLIPDROP_API_KEY}
+            )
+            response.raise_for_status()
+            return Response(response.content, mimetype='image/png')
+        except requests.exceptions.RequestException as e:
+            logger.error(f"ClipDrop API error (inpainting): {str(e)}")
+            return jsonify({'success': False, 'error': f"API error: {str(e)}"}), 500
 
     @app.route('/set-prolific-id', methods=['POST'])
     def set_prolific_id():
