@@ -86,6 +86,17 @@
     </div>
 
     <script>
+        // Initialize PROLIFIC_PID
+        window.PROLIFIC_PID = '';
+        
+        // Listen for PROLIFIC_PID from Qualtrics
+        window.addEventListener('message', function(event) {
+            if (event.data.action === 'setProlificId') {
+                window.PROLIFIC_PID = event.data.value;
+                console.log('Received PROLIFIC_PID:', window.PROLIFIC_PID);
+            }
+        });
+
         const form = document.getElementById('generateForm');
         const error = document.getElementById('error');
         const result = document.getElementById('result');

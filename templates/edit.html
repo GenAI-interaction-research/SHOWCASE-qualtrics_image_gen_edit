@@ -190,17 +190,27 @@
        window.editCount = parseInt("{{ edit_count }}");
        window.initialStyle = "{{ style }}";
        window.initialMode = "{{ mode }}";
-       window.PROLIFIC_PID = "{{ prolific_id }}";
+       window.PROLIFIC_PID = '';  // Initialize empty
 
-       document.getElementById('urlParams').textContent = window.location.search;
+       // Listen for PROLIFIC_PID from Qualtrics
+       window.addEventListener('message', function(event) {
+           if (event.data.action === 'setProlificId') {
+               window.PROLIFIC_PID = event.data.value;
+               console.log('Received PROLIFIC_PID:', window.PROLIFIC_PID);
+               // Update debug info
+               document.getElementById('pidValue').textContent = window.PROLIFIC_PID;
+           }
+       });
+
+       // Debug info
        document.getElementById('rawUrl').textContent = window.location.href;
-       document.getElementById('allParams').textContent = JSON.stringify(Object.fromEntries(new URLSearchParams(window.location.search)));
+       document.getElementById('urlParams').textContent = new URLSearchParams(window.location.search).toString();
+       document.getElementById('allParams').textContent = JSON.stringify({
+           editCount: window.editCount,
+           style: window.initialStyle,
+           prolificId: window.PROLIFIC_PID
+       });
        document.getElementById('pidValue').textContent = window.PROLIFIC_PID;
-       
-       console.log('Raw URL:', window.location.href);
-       console.log('URL Parameters:', window.location.search);
-       console.log('All parameters:', Object.fromEntries(new URLSearchParams(window.location.search)));
-       console.log('PROLIFIC_PID:', window.PROLIFIC_PID);
    </script>
    <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
