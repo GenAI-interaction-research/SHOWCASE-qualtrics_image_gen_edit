@@ -54,14 +54,21 @@ def create_app():
    app.wsgi_app = ProxyFix(app.wsgi_app)
    app.secret_key = os.getenv('SECRET_KEY', 'dev-key-123')
    
-   # Update CORS configuration
+   # Update CORS configuration to allow all Qualtrics domains
    CORS(app, supports_credentials=True, resources={
        r"/*": {
-           "origins": ["https://survey.eu.qualtrics.com"],
+           "origins": [
+               "https://survey.eu.qualtrics.com",
+               "https://*.qualtrics.com",
+               "https://eu.qualtrics.com",
+               "https://emlyonbs.qualtrics.com",
+               "http://localhost:5000"
+           ],
            "methods": ["GET", "POST", "OPTIONS"],
-           "allow_headers": ["Content-Type"],
+           "allow_headers": ["Content-Type", "Authorization"],
            "expose_headers": ["Access-Control-Allow-Origin"],
-           "supports_credentials": True
+           "supports_credentials": True,
+           "max_age": 3600
        }
    })
 
