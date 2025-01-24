@@ -259,6 +259,7 @@ async function handleUndo() {
             <input type="hidden" name="style" value="${window.initialStyle}">
             <input type="hidden" name="mode" value="${window.initialMode}">
             <input type="hidden" name="is_undo" value="true">
+            <input type="hidden" name="PROLIFIC_PID" value="${window.PROLIFIC_PID}">
         `;
         document.body.appendChild(submissionForm);
         submissionForm.submit();
@@ -465,6 +466,7 @@ async function submitEdit() {
             <input type="hidden" name="edit_count" value="${window.editCount + 1}">
             <input type="hidden" name="style" value="${window.initialStyle}">
             <input type="hidden" name="mode" value="${mode}">
+            <input type="hidden" name="PROLIFIC_PID" value="${window.PROLIFIC_PID}">
         `;
         document.body.appendChild(submissionForm);
         submissionForm.submit();

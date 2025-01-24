@@ -27,15 +27,12 @@ STYLE_PROMPTS = {
 def build_full_prompt(user_prompt, style=None):
    base_prompt = user_prompt.strip().rstrip(',. ')
    style_prompt = STYLE_PROMPTS.get(style, '')
-   
    components = []
    if base_prompt:
        components.append(base_prompt)
    if style_prompt:
        components.append(style_prompt)
-   
    components.append("high quality, professional, detailed")
-   
    full_prompt = ', '.join(components)
    return full_prompt[:1000]
 
@@ -57,7 +54,6 @@ def create_app():
    app.wsgi_app = ProxyFix(app.wsgi_app)
    CORS(app)
 
-   # Initialize Cloudinary
    cloudinary.config( 
        cloud_name = "ddzia7e31",
        api_key = "368358624844357",
@@ -79,12 +75,9 @@ def create_app():
            data = request.get_json()
            user_prompt = data.get('prompt')
            style = data.get('style', '')
-           
            if not user_prompt:
                return jsonify({'success': False, 'error': 'No prompt provided'}), 400
-
            full_prompt = build_full_prompt(user_prompt, style if style else None)
-           
            response = requests.post(
                'https://clipdrop-api.co/text-to-image/v1',
                files={'prompt': (None, full_prompt)},
@@ -92,7 +85,6 @@ def create_app():
            )
            response.raise_for_status()
            return Response(response.content, mimetype='image/png')
-
        except Exception as e:
            logger.error(f"Generation error: {str(e)}")
            return jsonify({'success': False, 'error': str(e)}), 500
@@ -104,6 +96,7 @@ def create_app():
            edit_count = request.form.get('edit_count', 1)
            style = request.form.get('style', '')
            mode = request.form.get('mode', 'inpaint')
+           prolific_id = request.form.get('PROLIFIC_PID', '')
 
            if not image_data:
                return jsonify({'success': False, 'error': 'No image data provided'}), 400
@@ -114,10 +107,11 @@ def create_app():
                edit_count = 1
 
            return render_template('edit.html',
-                               image_data=image_data,
-                               edit_count=edit_count,
-                               style=style,
-                               mode=mode)
+                              image_data=image_data,
+                              edit_count=edit_count,
+                              style=style,
+                              mode=mode,
+                              prolific_id=prolific_id)
 
        except Exception as e:
            logger.error(f"Edit error: {str(e)}")
@@ -128,13 +122,10 @@ def create_app():
        try:
            image_data = request.form.get('image')
            style = request.form.get('style', '')
-           
            if not image_data:
                return jsonify({'success': False, 'error': 'No image data'}), 400
-           
            if ',' in image_data:
                image_data = image_data.split(',')[1]
-           
            image_bytes = BytesIO(base64.b64decode(image_data))
            mode = request.form.get('mode', 'inpaint')
 
@@ -146,7 +137,6 @@ def create_app():
                return handle_reimagine(image_bytes)
            else:
                return handle_inpainting(image_bytes, style)
-
        except Exception as e:
            logger.error(f"Processing error: {str(e)}")
            return jsonify({'success': False, 'error': str(e)}), 500
@@ -155,9 +145,7 @@ def create_app():
        user_prompt = request.form.get('prompt')
        if not user_prompt:
            return jsonify({'success': False, 'error': 'Missing background description'}), 400
-
        full_prompt = build_full_prompt(user_prompt, style)
-
        response = requests.post(
            'https://clipdrop-api.co/replace-background/v1',
            files={'image_file': ('image.jpg', image_bytes, 'image/jpeg')},
@@ -171,7 +159,6 @@ def create_app():
        mask_file = request.files.get('mask')
        if not mask_file:
            return jsonify({'success': False, 'error': 'Missing mask'}), 400
-
        mask = ensure_grayscale_png(mask_file)
        response = requests.post(
            'https://clipdrop-api.co/cleanup/v1',
@@ -199,10 +186,8 @@ def create_app():
        user_prompt = request.form.get('prompt')
        if not all([mask_file, user_prompt]):
            return jsonify({'success': False, 'error': 'Missing data'}), 400
-
        full_prompt = build_full_prompt(user_prompt, style)
        mask = ensure_grayscale_png(mask_file)
-
        response = requests.post(
            'https://clipdrop-api.co/text-inpainting/v1',
            files={
@@ -232,7 +217,7 @@ def create_app():
                data['imageData'],
                folder="prolific_images",
                public_id=prolific_id,
-               upload_preset="ml_default"  # Changed from qualtrics_upload to ml_default
+               upload_preset="ml_default"
            )
            
            logger.info(f"Upload successful. URL: {result['secure_url']}")
