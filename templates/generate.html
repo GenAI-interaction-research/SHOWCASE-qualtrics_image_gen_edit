@@ -35,40 +35,24 @@
                 <div>
                     <label class="block text-sm font-medium mb-2">
                         Prompt
-                        <span class="block text-xs text-gray-500 mt-1">For best results, include style references and quality terms</span>
+                        <span class="block text-xs text-gray-500 mt-1">Enter your image generation prompt</span>
                     </label>
                     <textarea
                         id="prompt"
-                        placeholder=""
+                        placeholder="Describe the image you want to generate..."
                         class="w-full p-2 border rounded h-24"
                         required
                     ></textarea>
                 </div>
 
-                <div>
-                    <label class="block text-sm font-medium mb-2">
-                        Style
-                        <span class="block text-xs text-gray-500 mt-1">Select a visual style for your image</span>
-                    </label>
-                    <select id="style" class="w-full p-2 border rounded">
-                        <option value="realistic" selected>Hyper-Realistic</option>
-                        <option value="cyberpunk">Cyberpunk</option>
-                        <option value="oilpainting">Oil Painting</option>
-                        <option value="anime">Anime</option>
-                        <option value="digitalart">Digital Art</option>
-                        <option value="pixelart">Pixel Art</option>
-                    </select>
-                </div>
-
-                <div id="error" class="p-3 bg-red-100 text-red-700 rounded hidden"></div>
-
-                <div id="spinner" class="spinner"></div>
+                <div class="text-red-500 hidden" id="error"></div>
+                <div class="spinner" id="spinner"></div>
 
                 <button
                     type="submit"
-                    class="w-full bg-blue-600 text-white p-3 rounded hover:bg-blue-700 flex items-center justify-center"
+                    class="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 transition-colors"
                 >
-                    <span id="buttonText">Generate Image</span>
+                    Generate Image
                 </button>
             </form>
 
@@ -112,7 +96,6 @@
         const error = document.getElementById('error');
         const result = document.getElementById('result');
         const generatedImage = document.getElementById('generatedImage');
-        const buttonText = document.getElementById('buttonText');
         let imageBlob = null;
 
         form.addEventListener('submit', async (e) => {
@@ -120,7 +103,6 @@
             
             error.classList.add('hidden');
             const prompt = document.getElementById('prompt').value.trim();
-            const style = document.getElementById('style').value;
 
             if (!prompt) {
                 error.textContent = 'Please enter a prompt';
@@ -133,7 +115,6 @@
             }
 
             form.classList.add('loading');
-            buttonText.textContent = 'Generating...';
             document.getElementById('spinner').style.display = 'block';
 
             try {
@@ -141,8 +122,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
-                        prompt: prompt,
-                        style: style
+                        prompt: prompt
                     })
                 });
 
@@ -165,7 +145,6 @@
                 error.classList.remove('hidden');
             } finally {
                 form.classList.remove('loading');
-                buttonText.textContent = 'Generate Image';
                 document.getElementById('spinner').style.display = 'none';
             }
         });
@@ -227,12 +206,6 @@
                 countInput.name = 'edit_count';
                 countInput.value = '1';
                 form.appendChild(countInput);
-
-                const styleInput = document.createElement('input');
-                styleInput.type = 'hidden';
-                styleInput.name = 'style';
-                styleInput.value = document.getElementById('style').value;
-                form.appendChild(styleInput);
 
                 document.body.appendChild(form);
                 form.submit();

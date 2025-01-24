@@ -17,56 +17,9 @@ from datetime import datetime
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-STYLE_PROMPTS = {
-    "realistic": (
-        "ultra-realistic photography, 8k resolution, f/1.8 aperture, natural lighting, "
-        "detailed textures, depth of field, cinematic composition, photorealistic, "
-        "fabric texture, environmental reflections, "
-        "DSLR photography, sharp focus"
-    ),
-    "cyberpunk": (
-        "cyberpunk neon-noir, rain-washed streets, holographic advertisements, "
-        "futuristic megacity, glowing neon signs, dystopian atmosphere, "
-        "cinematic lighting, chromatic aberration, retro-futuristic technology, "
-        "steam rising from vents, synthwave color palette"
-    ),
-    "oilpainting": (
-        "impasto oil painting, visible brush strokes, baroque era style, "
-        "Rembrandt lighting, chiaroscuro technique, canvas texture visible, "
-        "rich oil pigments, classical composition, Old Masters aesthetic, "
-        "warm earthy tones, glazing technique"
-    ),
-    "anime": (
-        "Studio Ghibli aesthetic, Makoto Shinkai-style landscapes, "
-        "cel-shaded animation, vibrant color gradients, dramatic sky clouds, "
-        "expressive character eyes, soft glow effects, detailed linework, "
-        "anime key visual art, atmospheric perspective"
-    ),
-    "digitalart": (
-        "trending on ArtStation, Unreal Engine 5 render, octane rendering, "
-        "concept art composition, intricate details, dramatic lighting, "
-        "hyper-detailed textures, fantasy realism, dynamic pose, "
-        "volumetric lighting, post-processing effects"
-    ),
-    "pixelart": (
-        "retro 16-bit arcade style, CRT screen effect, dithering patterns, "
-        "limited color palette, low-resolution sprites, scanlines overlay, "
-        "NES/SNES era aesthetics, chiptune color scheme, "
-        "parallax scrolling background, vintage gaming nostalgia"
-    )
-}
-
 def build_full_prompt(user_prompt, style=None):
-   base_prompt = user_prompt.strip().rstrip(',. ')
-   style_prompt = STYLE_PROMPTS.get(style, '')
-   components = []
-   if base_prompt:
-       components.append(base_prompt)
-   if style_prompt:
-       components.append(style_prompt)
-   components.append("high quality, professional, detailed")
-   full_prompt = ', '.join(components)
-   return full_prompt[:1000]
+    # Simply return the cleaned user prompt
+    return user_prompt.strip().rstrip(',. ')[:1000]
 
 def ensure_grayscale_png(file_stream):
    img = Image.open(file_stream)

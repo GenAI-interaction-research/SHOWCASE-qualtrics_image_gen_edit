@@ -290,12 +290,6 @@ function undoEdit() {
     countInput.value = window.editCount + 1;  // Increment edit count
     form.appendChild(countInput);
 
-    const styleInput = document.createElement('input');
-    styleInput.type = 'hidden';
-    styleInput.name = 'style';
-    styleInput.value = window.initialStyle;
-    form.appendChild(styleInput);
-
     document.body.appendChild(form);
     form.submit();
 }
@@ -423,7 +417,6 @@ async function submitEdit() {
         const formData = new FormData();
         formData.append('image', window.imageData);
         formData.append('mode', mode);
-        formData.append('style', window.initialStyle);
 
         if (mode === 'replacebg') {
             formData.append('prompt', promptInput.value.trim());
@@ -524,7 +517,6 @@ async function submitEdit() {
         submissionForm.innerHTML = `
             <input type="hidden" name="image" value="${compressedBase64}">
             <input type="hidden" name="edit_count" value="${window.editCount + 1}">
-            <input type="hidden" name="style" value="${window.initialStyle}">
             <input type="hidden" name="mode" value="${mode}">
             <input type="hidden" name="session_id" value="${window.SESSION_ID}">
         `;
