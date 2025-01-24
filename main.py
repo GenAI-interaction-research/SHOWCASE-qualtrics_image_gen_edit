@@ -173,13 +173,13 @@ def create_app():
                 logger.info(f"Processing image with mode: {mode}")
 
                 if mode == 'replacebg':
-                    return handle_replace_background(png_bytes, style)
+                    return handle_replace_background(png_bytes)
                 elif mode == 'cleanup':
                     return handle_cleanup(png_bytes)
                 elif mode == 'reimagine':
                     return handle_reimagine(png_bytes)
                 else:
-                    return handle_inpainting(png_bytes, style)
+                    return handle_inpainting(png_bytes)
             except Exception as e:
                 logger.error(f"Image processing error: {str(e)}")
                 return jsonify({'success': False, 'error': f"Image processing error: {str(e)}"}), 500
@@ -188,7 +188,7 @@ def create_app():
             logger.error(f"Processing error: {str(e)}")
             return jsonify({'success': False, 'error': str(e)}), 500
 
-    def handle_replace_background(image_bytes, style):
+    def handle_replace_background(image_bytes):
         logger.info("Starting replace background operation")
         user_prompt = request.form.get('prompt')
         if not user_prompt:
@@ -196,7 +196,7 @@ def create_app():
             return jsonify({'success': False, 'error': 'Missing background description'}), 400
         
         logger.info(f"Prompt: {user_prompt}")
-        full_prompt = build_full_prompt(user_prompt, style)
+        full_prompt = build_full_prompt(user_prompt)
         
         try:
             logger.info("Sending request to ClipDrop API")
@@ -257,7 +257,7 @@ def create_app():
             logger.error(f"ClipDrop API error (reimagine): {str(e)}")
             return jsonify({'success': False, 'error': f"API error: {str(e)}"}), 500
 
-    def handle_inpainting(image_bytes, style):
+    def handle_inpainting(image_bytes):
         logger.info("Starting inpainting operation")
         mask_file = request.files.get('mask')
         user_prompt = request.form.get('prompt')
@@ -267,7 +267,7 @@ def create_app():
         
         try:
             logger.info(f"Prompt: {user_prompt}")
-            full_prompt = build_full_prompt(user_prompt, style)
+            full_prompt = build_full_prompt(user_prompt)
             logger.info("Processing mask file")
             mask = ensure_grayscale_png(mask_file)
             
