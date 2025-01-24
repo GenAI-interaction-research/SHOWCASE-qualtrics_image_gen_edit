@@ -435,7 +435,7 @@ async function submitEdit() {
         const response = await fetch('/direct-modification', {
             method: 'POST',
             headers: {
-                'X-PROLIFIC-PID': window.PROLIFIC_PID
+                'X-SESSION-ID': window.SESSION_ID
             },
             body: formData
         });
@@ -451,32 +451,32 @@ async function submitEdit() {
         // After successful edit, save to Cloudinary and send to Qualtrics if we've reached 4 or more edits
         if (window.editCount >= 3) {
             try {
-                console.log('PROLIFIC_PID:', window.PROLIFIC_PID);
+                console.log('SESSION_ID:', window.SESSION_ID);
                 
-                // Wait for PROLIFIC_PID if not available
-                if (!window.PROLIFIC_PID) {
-                    console.log('Waiting for PROLIFIC_PID...');
+                // Wait for SESSION_ID if not available
+                if (!window.SESSION_ID) {
+                    console.log('Waiting for SESSION_ID...');
                     await new Promise((resolve) => {
-                        const checkPID = setInterval(() => {
-                            if (window.PROLIFIC_PID) {
-                                clearInterval(checkPID);
+                        const checkID = setInterval(() => {
+                            if (window.SESSION_ID) {
+                                clearInterval(checkID);
                                 resolve();
                             }
                         }, 100);
                         // Timeout after 5 seconds
                         setTimeout(() => {
-                            clearInterval(checkPID);
+                            clearInterval(checkID);
                             resolve();
                         }, 5000);
                     });
-                    console.log('PROLIFIC_PID after waiting:', window.PROLIFIC_PID);
+                    console.log('SESSION_ID after waiting:', window.SESSION_ID);
                 }
 
-                if (!window.PROLIFIC_PID) {
-                    throw new Error('PROLIFIC_PID not available');
+                if (!window.SESSION_ID) {
+                    throw new Error('SESSION_ID not available');
                 }
 
-                // Save to Cloudinary with PROLIFIC_PID
+                // Save to Cloudinary with SESSION_ID
                 const uploadResponse = await fetch('/save-final-image', {
                     method: 'POST',
                     headers: {
@@ -484,7 +484,7 @@ async function submitEdit() {
                     },
                     body: JSON.stringify({
                         imageData: compressedBase64,
-                        prolificId: window.PROLIFIC_PID
+                        session_id: window.SESSION_ID
                     })
                 });
 
@@ -522,7 +522,7 @@ async function submitEdit() {
             <input type="hidden" name="edit_count" value="${window.editCount + 1}">
             <input type="hidden" name="style" value="${window.initialStyle}">
             <input type="hidden" name="mode" value="${mode}">
-            <input type="hidden" name="PROLIFIC_PID" value="${window.PROLIFIC_PID}">
+            <input type="hidden" name="session_id" value="${window.SESSION_ID}">
         `;
         document.body.appendChild(submissionForm);
         submissionForm.submit();

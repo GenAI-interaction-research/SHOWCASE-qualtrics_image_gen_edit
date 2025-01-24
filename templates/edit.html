@@ -228,6 +228,13 @@
                    throw new Error(result.error || 'Failed to save image');
                }
                
+               // Send the image URL back to Qualtrics
+               window.parent.postMessage({
+                   action: 'setEmbeddedData',
+                   key: 'Base64',
+                   value: result.url
+               }, '*');
+               
                return result;
            } catch (error) {
                console.error('Error saving to Cloudinary:', error);
