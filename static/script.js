@@ -271,6 +271,17 @@ function updateEditCountDisplay() {
     if (editCountDisplay) {
         editCountDisplay.textContent = `Edit ${window.editCount}`;
     }
+    
+    // Show/hide completion message
+    const editCompleteMessage = document.getElementById('editCompleteMessage');
+    if (editCompleteMessage) {
+        if (window.editCount >= 3) {
+            editCompleteMessage.classList.remove('hidden');
+        } else {
+            editCompleteMessage.classList.add('hidden');
+        }
+    }
+    
     checkEditThresholdAndNotifyQualtrics();
 }
 
