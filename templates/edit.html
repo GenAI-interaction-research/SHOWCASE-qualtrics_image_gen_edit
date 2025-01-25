@@ -47,16 +47,15 @@
        <div class="max-w-4xl mx-auto bg-white rounded-lg shadow p-6">
            <div class="flex justify-between items-center mb-6">
                <h1 class="text-2xl font-bold">Edit {{ edit_count }}</h1>
+               {% if edit_count >= 3 %}
+               <div class="bg-green-50 border-l-4 border-green-400 p-4 mb-6">
+                   <p class="text-green-700">
+                       You have completed the minimum required edits! You can now continue with the survey, or keep editing if you'd like to make more changes to your image.
+                   </p>
+               </div>
+               {% endif %}
            </div>
            
-           {% if edit_count >= 3 %}
-           <div class="bg-green-50 border-l-4 border-green-400 p-4 mb-6">
-               <p class="text-green-700">
-                   You have completed the minimum required edits! You can now continue with the survey, or keep editing if you'd like to make more changes to your image.
-               </p>
-           </div>
-           {% endif %}
-
            <div class="mb-6">
                <div class="border-b border-gray-200">
                    <nav class="-mb-px flex" aria-label="Tabs">
