@@ -158,6 +158,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     let activeTab = document.querySelector(`[data-mode="${initialMode}"]`);
     if (!activeTab) activeTab = document.querySelector('[data-mode]');
     if (activeTab) activateTab(activeTab);
+
+    setupPromptValidation();
 });
 
 function activateTab(tab) {
@@ -576,5 +578,26 @@ function showError(message) {
     if (errorDiv) {
         errorDiv.textContent = message;
         errorDiv.classList.remove('hidden');
+    }
+}
+
+// Add this function to check prompt in real-time
+function setupPromptValidation() {
+    const promptInput = document.getElementById('prompt');
+    const submitButton = document.getElementById('applyEditButton');
+    const errorDiv = document.getElementById('error');
+
+    if (promptInput) {
+        promptInput.addEventListener('input', () => {
+            const hasTextPrompt = containsWritingPrompt(promptInput.value);
+            if (hasTextPrompt) {
+                submitButton.disabled = true;
+                errorDiv.textContent = 'Sorry, generating text or writing in images is not allowed';
+                errorDiv.classList.remove('hidden');
+            } else {
+                submitButton.disabled = false;
+                errorDiv.classList.add('hidden');
+            }
+        });
     }
 }

@@ -117,6 +117,28 @@
             return writingKeywords.some(keyword => promptLower.includes(keyword));
         }
 
+        function setupPromptValidation() {
+            const promptInput = document.getElementById('prompt');
+            const submitButton = form.querySelector('button[type="submit"]');
+            const error = document.getElementById('error');
+
+            if (promptInput) {
+                promptInput.addEventListener('input', () => {
+                    const hasTextPrompt = containsWritingPrompt(promptInput.value);
+                    if (hasTextPrompt) {
+                        submitButton.disabled = true;
+                        error.textContent = 'Sorry, generating text or writing in images is not allowed';
+                        error.classList.remove('hidden');
+                    } else {
+                        submitButton.disabled = false;
+                        error.classList.add('hidden');
+                    }
+                });
+            }
+        }
+
+        setupPromptValidation();
+
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -125,12 +147,6 @@
 
             if (!prompt) {
                 error.textContent = 'Please enter a prompt';
-                error.classList.remove('hidden');
-                return;
-            }
-
-            if (containsWritingPrompt(prompt)) {
-                error.textContent = 'Sorry, generating text or writing in images is not allowed';
                 error.classList.remove('hidden');
                 return;
             }
