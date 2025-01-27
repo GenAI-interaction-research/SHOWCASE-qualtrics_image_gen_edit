@@ -100,6 +100,8 @@
             value: window.SESSION_ID
         }, '*');
 
+        let generationCount = 0;
+
         const form = document.getElementById('generateForm');
         const error = document.getElementById('error');
         const result = document.getElementById('result');
@@ -109,7 +111,7 @@
         function containsWritingPrompt(prompt) {
             const writingKeywords = [
                 'text', 'write', 'writing', 'written', 'caption', 'word', 'words', 'letter',
-                'letters', 'font', 'sign', 'signs', 'label', 'labels', 'type', 'typed',
+                'letters', 'font', 'label', 'labels', 'type', 'typed',
                 'handwriting', 'signature', 'write out', 'spell', 'spelling'
             ];
             
@@ -127,7 +129,7 @@
                     const hasTextPrompt = containsWritingPrompt(promptInput.value);
                     if (hasTextPrompt) {
                         submitButton.disabled = true;
-                        error.textContent = 'Sorry, generating text or writing in images is not allowed';
+                        error.textContent = 'Please create an image without text or writing';
                         error.classList.remove('hidden');
                     } else {
                         submitButton.disabled = false;
@@ -159,6 +161,16 @@
             document.getElementById('spinner').style.display = 'block';
 
             try {
+                // Increment generation count before the fetch
+                generationCount++;
+                
+                // Send to Qualtrics
+                window.parent.postMessage({
+                    action: 'setEmbeddedData',
+                    key: 'GENERATION_COUNT',
+                    value: generationCount
+                }, '*');
+
                 const response = await fetch('/generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },

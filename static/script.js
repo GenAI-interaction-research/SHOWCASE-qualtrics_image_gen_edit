@@ -334,6 +334,14 @@ async function undoEdit(previousVersion) {
         }
         
         console.log('Canvas updated with previous version');
+
+        // Add this: Send updated edit count to Qualtrics
+        window.parent.postMessage({
+            action: 'setEmbeddedData',
+            key: 'EDIT_COUNT',
+            value: window.editCount
+        }, '*');
+
     } catch (error) {
         console.error('Failed to restore previous version:', error);
         showError('Failed to restore previous version');
@@ -422,7 +430,7 @@ async function compressImage(input, maxSize = 800, quality = 0.8) {
 function containsWritingPrompt(prompt) {
     const writingKeywords = [
         'text', 'write', 'writing', 'written', 'caption', 'word', 'words', 'letter',
-        'letters', 'font', 'sign', 'signs', 'label', 'labels', 'type', 'typed',
+        'letters', 'font', 'label', 'labels', 'type', 'typed',
         'handwriting', 'signature', 'write out', 'spell', 'spelling'
     ];
     
@@ -459,7 +467,7 @@ async function submitEdit() {
             const prompt = promptInput.value.trim();
             // Check for writing-related content
             if (containsWritingPrompt(prompt)) {
-                throw new Error('Sorry, generating text or writing in images is not allowed');
+                throw new Error('Please create an image without text or writing');
             }
             if (!prompt) {
                 throw new Error(mode === 'inpaint' 
@@ -547,6 +555,13 @@ async function submitEdit() {
         console.log('Saving to Cloudinary...');
         await saveToCloudinary(base64Data);
         console.log('Saved to Cloudinary');
+
+        // Add this: Send edit count to Qualtrics
+        window.parent.postMessage({
+            action: 'setEmbeddedData',
+            key: 'EDIT_COUNT',
+            value: window.editCount
+        }, '*');
 
     } catch (error) {
         console.error('Edit failed:', error);
