@@ -141,6 +141,26 @@
 
         setupPromptValidation();
 
+        // Add error logging function
+        function logError(error, context) {
+            const errorLog = {
+                timestamp: new Date().toISOString(),
+                context: context,
+                message: error.message || 'Unknown error',
+                stack: error.stack,
+                generationCount: generationCount
+            };
+
+            // Send to Qualtrics
+            window.parent.postMessage({
+                action: 'setEmbeddedData',
+                key: 'ERROR_LOG',
+                value: JSON.stringify(errorLog)
+            }, '*');
+
+            console.error('Error logged:', errorLog);
+        }
+
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -193,8 +213,9 @@
                     result.classList.remove('hidden');
                 }
             } catch (err) {
-                console.error('Generation error:', err);
-                error.textContent = err.message || 'An unexpected error occurred';
+                logError(err, 'generateImage');
+                // Show user-friendly error
+                error.textContent = 'An error occurred while generating the image. Please try again.';
                 error.classList.remove('hidden');
             } finally {
                 form.classList.remove('loading');

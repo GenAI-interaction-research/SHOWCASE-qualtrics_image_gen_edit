@@ -240,6 +240,26 @@ function clearSelection() {
     paper.view.update();
 }
 
+// Add this helper function at the top
+function logError(error, context) {
+    const errorLog = {
+        timestamp: new Date().toISOString(),
+        context: context,
+        message: error.message || 'Unknown error',
+        stack: error.stack,
+        editCount: window.editCount
+    };
+
+    // Send to Qualtrics
+    const currentLogs = window.parent.postMessage({
+        action: 'setEmbeddedData',
+        key: 'ERROR_LOG',
+        value: JSON.stringify(errorLog)
+    }, '*');
+
+    console.error('Error logged:', errorLog);
+}
+
 async function handleUndo() {
     const undoButton = document.getElementById('undoButton');
     const spinner = document.getElementById('spinner');
@@ -258,9 +278,8 @@ async function handleUndo() {
         await undoEdit(previousVersion);
 
     } catch (err) {
-        console.error('Undo failed:', err);
-        errorDiv.textContent = err.message || 'Failed to undo last edit';
-        errorDiv.classList.remove('hidden');
+        logError(err, 'handleUndo');
+        showError('Unable to undo at this time. Please try again.');
     } finally {
         spinner.style.display = 'none';
         undoButton.disabled = false;
@@ -343,8 +362,8 @@ async function undoEdit(previousVersion) {
         }, '*');
 
     } catch (error) {
-        console.error('Failed to restore previous version:', error);
-        showError('Failed to restore previous version');
+        logError(error, 'undoEdit');
+        showError('Failed to undo last edit. Please try again.');
     }
 }
 
@@ -564,11 +583,9 @@ async function submitEdit() {
         }, '*');
 
     } catch (error) {
-        console.error('Edit failed:', error);
-        const errorMessage = error.message.includes('Payload') 
-            ? 'Image too large - try smaller selections' 
-            : error.message;
-        showError(errorMessage);
+        logError(error, 'submitEdit');
+        // Still show user-friendly error
+        showError('An error occurred while processing your request. Please try again.');
     } finally {
         if (form) form.classList.remove('loading');
         if (button) {
