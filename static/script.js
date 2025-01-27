@@ -281,19 +281,6 @@ function updateEditCountDisplay() {
             editCompleteMessage.classList.add('hidden');
         }
     }
-    
-    checkEditThresholdAndNotifyQualtrics();
-}
-
-// Helper function to check if enough edits have been made and notify Qualtrics
-function checkEditThresholdAndNotifyQualtrics() {
-    if (window.editCount >= 3) {
-        // Notify Qualtrics that enough edits have been made
-        window.parent.postMessage({
-            action: 'enableContinue',
-            completed: true
-        }, '*');
-    }
 }
 
 async function undoEdit(previousVersion) {
@@ -430,6 +417,17 @@ async function compressImage(input, maxSize = 800, quality = 0.8) {
     });
 }
 
+function containsWritingPrompt(prompt) {
+    const writingKeywords = [
+        'text', 'write', 'writing', 'written', 'caption', 'word', 'words', 'letter',
+        'letters', 'font', 'sign', 'signs', 'label', 'labels', 'type', 'typed',
+        'handwriting', 'signature', 'write out', 'spell', 'spelling'
+    ];
+    
+    const promptLower = prompt.toLowerCase();
+    return writingKeywords.some(keyword => promptLower.includes(keyword));
+}
+
 async function submitEdit() {
     const form = document.getElementById('editForm');
     const promptInput = document.getElementById('prompt');
@@ -454,8 +452,13 @@ async function submitEdit() {
             promptInput.value = promptInput.value.substring(0, 1000);
         }
 
+        // Add writing check for modes that use prompts
         if (['inpaint', 'replacebg'].includes(mode)) {
             const prompt = promptInput.value.trim();
+            // Check for writing-related content
+            if (containsWritingPrompt(prompt)) {
+                throw new Error('Sorry, generating text or writing in images is not allowed');
+            }
             if (!prompt) {
                 throw new Error(mode === 'inpaint' 
                     ? 'Please describe what should appear in selected areas' 

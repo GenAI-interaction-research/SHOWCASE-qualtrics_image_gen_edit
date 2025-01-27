@@ -106,6 +106,17 @@
         const generatedImage = document.getElementById('generatedImage');
         let imageBlob = null;
 
+        function containsWritingPrompt(prompt) {
+            const writingKeywords = [
+                'text', 'write', 'writing', 'written', 'caption', 'word', 'words', 'letter',
+                'letters', 'font', 'sign', 'signs', 'label', 'labels', 'type', 'typed',
+                'handwriting', 'signature', 'write out', 'spell', 'spelling'
+            ];
+            
+            const promptLower = prompt.toLowerCase();
+            return writingKeywords.some(keyword => promptLower.includes(keyword));
+        }
+
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -114,6 +125,12 @@
 
             if (!prompt) {
                 error.textContent = 'Please enter a prompt';
+                error.classList.remove('hidden');
+                return;
+            }
+
+            if (containsWritingPrompt(prompt)) {
+                error.textContent = 'Sorry, generating text or writing in images is not allowed';
                 error.classList.remove('hidden');
                 return;
             }
