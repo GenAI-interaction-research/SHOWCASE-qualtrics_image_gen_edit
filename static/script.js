@@ -293,15 +293,11 @@ function updateEditCountDisplay() {
         editCountDisplay.textContent = `Edit ${window.editCount}`;
     }
     
-    // Show/hide completion message after first edit instead of 3
-    const editCompleteMessage = document.getElementById('editCompleteMessage');
-    if (editCompleteMessage) {
-        if (window.editCount >= 1) {  // Changed from 3 to 1
-            editCompleteMessage.classList.remove('hidden');
-        } else {
-            editCompleteMessage.classList.add('hidden');
-        }
-    }
+    // Always enable continue in edit mode
+    window.parent.postMessage({
+        action: 'enableContinue',
+        completed: true
+    }, '*');
 }
 
 async function undoEdit(previousVersion) {
