@@ -211,9 +211,33 @@
                 
                 const reader = new FileReader();
                 reader.readAsDataURL(imageBlob);
-                reader.onloadend = function() {
+                reader.onloadend = async function() {
+                    // Display the image
                     generatedImage.src = reader.result;
                     result.classList.remove('hidden');
+
+                    // Save to Cloudinary
+                    console.log('Saving to Cloudinary...');
+                    try {
+                        const cloudinaryResponse = await fetch('/save-final-image', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                image: reader.result,
+                                session_id: window.SESSION_ID
+                            })
+                        });
+
+                        if (!cloudinaryResponse.ok) {
+                            console.error('Failed to save to Cloudinary:', await cloudinaryResponse.text());
+                        } else {
+                            console.log('Saved to Cloudinary');
+                        }
+                    } catch (cloudinaryError) {
+                        console.error('Error saving to Cloudinary:', cloudinaryError);
+                    }
                 }
 
                 // After successful generation, enable continue
@@ -223,7 +247,6 @@
                 }, '*');
             } catch (err) {
                 logError(err, 'generateImage');
-                // Show user-friendly error
                 error.textContent = 'An error occurred while generating the image. Please try again.';
                 error.classList.remove('hidden');
             } finally {
