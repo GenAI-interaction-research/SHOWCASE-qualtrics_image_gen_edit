@@ -69,6 +69,8 @@ let isDrawing = false;
 let raster;
 let path;
 let historyManager;
+let addPrompts = [];
+let backgroundPrompts = [];
 
 // Initialize Paper.js canvas and tools
 function initializePaperCanvas() {
@@ -477,19 +479,29 @@ async function submitEdit() {
             promptInput.value = promptInput.value.substring(0, 1000);
         }
 
-        // Add writing check for modes that use prompts
+        // Store prompts based on mode
         if (['inpaint', 'replacebg'].includes(mode)) {
             const prompt = promptInput.value.trim();
-            // Check for writing-related content
-            if (containsWritingPrompt(prompt)) {
-                throw new Error('Please create an image without text or writing');
+            
+            // Store add element prompts
+            if (mode === 'inpaint') {
+                addPrompts.push(prompt);
+                window.parent.postMessage({
+                    action: 'setEmbeddedData',
+                    key: 'ADD_PROMPT',
+                    value: addPrompts.join(' || ')
+                }, '*');
             }
-            if (!prompt) {
-                throw new Error(mode === 'inpaint' 
-                    ? 'Please describe what should appear in selected areas' 
-                    : 'Please describe the new background');
+            
+            // Store background change prompts
+            if (mode === 'replacebg') {
+                backgroundPrompts.push(prompt);
+                window.parent.postMessage({
+                    action: 'setEmbeddedData',
+                    key: 'BACKGROUND_PROMPT',
+                    value: backgroundPrompts.join(' || ')
+                }, '*');
             }
-            console.log('Prompt:', prompt);
         }
         
         if (paths.length === 0 && !['reimagine', 'replacebg'].includes(mode)) {

@@ -104,6 +104,7 @@
         }, '*');
 
         let generationCount = 0;
+        let generatePrompts = [];
 
         const form = document.getElementById('generateForm');
         const error = document.getElementById('error');
@@ -175,6 +176,14 @@
                 error.classList.remove('hidden');
                 return;
             }
+
+            // Add new prompt to array and save to Qualtrics
+            generatePrompts.push(prompt);
+            window.parent.postMessage({
+                action: 'setEmbeddedData',
+                key: 'GENERATE_PROMPT',
+                value: generatePrompts.join(' || ')  // Using || as separator between prompts
+            }, '*');
 
             if (prompt.length > 1000) {
                 document.getElementById('prompt').value = prompt.substring(0, 1000);
