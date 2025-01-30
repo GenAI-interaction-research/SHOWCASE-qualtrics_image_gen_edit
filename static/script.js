@@ -123,6 +123,9 @@ function initializePaperCanvas() {
 }
 document.addEventListener('DOMContentLoaded', async () => {
     historyManager = new ImageHistory();
+    // Initialize edit count to 1 when entering edit page
+    window.editCount = 1;
+    updateEditCountDisplay();
     initializePaperCanvas();
 
     const spinner = document.getElementById('spinner');
@@ -583,7 +586,12 @@ async function submitEdit() {
         await saveToCloudinary(base64Data);
         console.log('Saved to Cloudinary');
 
-        // Add this: Send edit count to Qualtrics
+        // Only increment edit count if we're actually making changes
+        // (i.e., if we get to this point in the code)
+        window.editCount++;
+        updateEditCountDisplay();
+
+        // Update Qualtrics with new edit count
         window.parent.postMessage({
             action: 'setEmbeddedData',
             key: 'EDIT_COUNT',
