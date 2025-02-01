@@ -476,12 +476,17 @@ async function submitEdit() {
         const mode = activeTab.dataset.mode;
         console.log('Selected mode:', mode);
 
-        // Check for selection when needed
+        // Check for prompt in modes that require it
+        if (['inpaint', 'replacebg'].includes(mode)) {
+            const prompt = promptInput.value.trim();
+            if (!prompt) {
+                throw new Error('Please make a text input.');
+            }
+        }
+        
+        // Check for selection in modes that require it
         if (paths.length === 0 && !['reimagine', 'replacebg'].includes(mode)) {
-            const error = new Error('Please make a selection first');
-            // Remove the URL from the error stack
-            error.stack = error.stack.split('\n')[0];
-            throw error;
+            throw new Error('Please make a selection first');
         }
 
         historyManager.addVersion(window.imageData, window.editCount);
@@ -604,7 +609,7 @@ async function submitEdit() {
 
     } catch (error) {
         logError(error, 'submitEdit');
-        showError('An error occurred while processing your request. Please try again.');
+        showError(error.message);
     } finally {
         if (form) form.classList.remove('loading');
         if (button) {
