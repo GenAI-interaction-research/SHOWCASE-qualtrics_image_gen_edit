@@ -658,84 +658,87 @@ function setupPromptValidation() {
     }
 }
 
-// In your generate page, when transitioning to edit
-document.getElementById('editButton').addEventListener('click', async () => {
-    try {
-        const img = document.getElementById('generatedImage');
-        if (!img.src) {
-            throw new Error('No image available to edit');
-        }
-
-        // Show loading state
-        const loadingDiv = document.createElement('div');
-        loadingDiv.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; ' +
-            'background: rgba(255,255,255,0.9); display: flex; justify-content: center; align-items: center; z-index: 9999;';
-        loadingDiv.innerHTML = `
-            <div style="text-align: center;">
-                <div class="spinner" style="margin-bottom: 10px;"></div>
-                <p>Loading edit page...</p>
-            </div>
-        `;
-        document.body.appendChild(loadingDiv);
-
-        // Create and submit form with retry logic
-        let attempts = 0;
-        const maxAttempts = 3;
-
-        const submitForm = async () => {
-            try {
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = '/edit';
-
-                // Add all necessary fields
-                const fields = {
-                    'image': img.src,
-                    'edit_count': '1',
-                    'session_id': window.SESSION_ID
-                };
-
-                for (const [key, value] of Object.entries(fields)) {
-                    const input = document.createElement('input');
-                    input.type = 'hidden';
-                    input.name = key;
-                    input.value = value;
-                    form.appendChild(input);
-                }
-
-                document.body.appendChild(form);
-                form.submit();
-            } catch (error) {
-                attempts++;
-                if (attempts < maxAttempts) {
-                    console.log(`Form submission failed, attempt ${attempts}. Retrying...`);
-                    await new Promise(resolve => setTimeout(resolve, 1000));  // Wait 1 second
-                    await submitForm();  // Try again
-                } else {
-                    throw new Error('Failed to load edit page after multiple attempts');
-                }
+// Add this check at the start of script.js
+const editButton = document.getElementById('editButton');
+if (editButton) {  // Only add listener if button exists
+    editButton.addEventListener('click', async () => {
+        try {
+            const img = document.getElementById('generatedImage');
+            if (!img || !img.src) {
+                throw new Error('No image available to edit');
             }
-        };
 
-        await submitForm();
+            // Show loading state
+            const loadingDiv = document.createElement('div');
+            loadingDiv.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; ' +
+                'background: rgba(255,255,255,0.9); display: flex; justify-content: center; align-items: center; z-index: 9999;';
+            loadingDiv.innerHTML = `
+                <div style="text-align: center;">
+                    <div class="spinner" style="margin-bottom: 10px;"></div>
+                    <p>Loading edit page...</p>
+                </div>
+            `;
+            document.body.appendChild(loadingDiv);
 
-    } catch (error) {
-        // Show error message with retry button
-        const errorDiv = document.createElement('div');
-        errorDiv.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); ' +
-            'background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); ' +
-            'text-align: center; max-width: 80%; z-index: 9999;';
-        errorDiv.innerHTML = `
-            <h3 style="color: #333; margin-bottom: 10px;">Unable to load edit page</h3>
-            <p style="color: #666; margin-bottom: 15px;">${error.message}</p>
-            <button onclick="window.location.reload()" style="background: #007bff; color: white; 
-                border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
-                Try Again
-            </button>
-        `;
-        document.body.appendChild(errorDiv);
-        
-        // Log error to Qualtrics
-        logError(error, 'editPageTransition');
-    }
-});
+            // Create and submit form with retry logic
+            let attempts = 0;
+            const maxAttempts = 3;
+
+            const submitForm = async () => {
+                try {
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = '/edit';
+
+                    // Add all necessary fields
+                    const fields = {
+                        'image': img.src,
+                        'edit_count': '1',
+                        'session_id': window.SESSION_ID
+                    };
+
+                    for (const [key, value] of Object.entries(fields)) {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = key;
+                        input.value = value;
+                        form.appendChild(input);
+                    }
+
+                    document.body.appendChild(form);
+                    form.submit();
+                } catch (error) {
+                    attempts++;
+                    if (attempts < maxAttempts) {
+                        console.log(`Form submission failed, attempt ${attempts}. Retrying...`);
+                        await new Promise(resolve => setTimeout(resolve, 1000));  // Wait 1 second
+                        await submitForm();  // Try again
+                    } else {
+                        throw new Error('Failed to load edit page after multiple attempts');
+                    }
+                }
+            };
+
+            await submitForm();
+
+        } catch (error) {
+            // Show error message with retry button
+            const errorDiv = document.createElement('div');
+            errorDiv.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); ' +
+                'background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); ' +
+                'text-align: center; max-width: 80%; z-index: 9999;';
+            errorDiv.innerHTML = `
+                <h3 style="color: #333; margin-bottom: 10px;">Unable to load edit page</h3>
+                <p style="color: #666; margin-bottom: 15px;">${error.message}</p>
+                <button onclick="window.location.reload()" style="background: #007bff; color: white; 
+                    border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                    Try Again
+                </button>
+            `;
+            document.body.appendChild(errorDiv);
+            
+            // Log error to Qualtrics
+            logError(error, 'editPageTransition');
+        }
+    });
+}
