@@ -295,7 +295,7 @@ async function handleUndo() {
 function updateEditCountDisplay() {
     const editCountDisplay = document.querySelector('h1');
     if (editCountDisplay) {
-        editCountDisplay.textContent = `Edit ${window.editCount}`;
+        editCountDisplay.textContent = 'Edit';  // Just show "Edit" without the count
     }
     
     // Always enable continue in edit mode
