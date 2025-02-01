@@ -350,6 +350,61 @@ def create_app():
             logger.error(f"Error saving image: {str(e)}")
             return jsonify({'success': False, 'error': str(e)}), 500
 
+    @app.errorhandler(404)
+    def page_not_found(e):
+        # Check if the request was for the generate page
+        is_generate = request.path == '/'
+        
+        button_html = '''
+            <button onclick="window.location.href = window.location.href" style="background: #007bff; color: white; 
+                border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                Try Again
+            </button>
+        ''' if is_generate else '''
+            <button onclick="window.history.back()" style="background: #007bff; color: white; 
+                border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
+                Return to Previous Page
+            </button>
+        '''
+
+        error_html = f'''
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Page Not Found</title>
+            <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    height: 100vh;
+                    margin: 0;
+                    background-color: #f5f5f5;
+                }}
+                .error-container {{
+                    text-align: center;
+                    background: white;
+                    padding: 2rem;
+                    border-radius: 8px;
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                    max-width: 80%;
+                }}
+                h1 {{ color: #333; margin-bottom: 1rem; }}
+                p {{ color: #666; margin-bottom: 1.5rem; }}
+            </style>
+        </head>
+        <body>
+            <div class="error-container">
+                <h1>Page Not Found</h1>
+                <p>The page you're looking for couldn't be loaded.</p>
+                {button_html}
+            </div>
+        </body>
+        </html>
+        '''
+        return error_html, 404
+
     return app
 
 if __name__ == '__main__':

@@ -130,9 +130,9 @@
             errorMessage.innerHTML = `
                 <h3 style="color: #333; margin-bottom: 10px;">Having trouble loading the page</h3>
                 <p style="color: #666; margin-bottom: 15px;">Please try again</p>
-                <button onclick="window.history.back()" style="background: #007bff; color: white; 
+                <button onclick="window.location.href = window.location.href" style="background: #007bff; color: white; 
                     border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
-                    Return to Previous Page
+                    Try Again
                 </button>
             `;
             document.body.appendChild(errorMessage);
@@ -144,7 +144,7 @@
                 value: JSON.stringify({
                     timestamp: new Date().toISOString(),
                     context: 'pageLoad',
-                    message: 'Generate page load failed, showing return button',
+                    message: 'Generate page load failed, showing reload button',
                     type: 'LoadError'
                 })
             }, '*');
