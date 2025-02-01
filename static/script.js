@@ -251,12 +251,12 @@ function logError(error, context) {
         timestamp: new Date().toISOString(),
         context: context,
         message: error.message || 'Unknown error',
-        stack: error.stack,
+        stack: error.stack ? error.stack.split('\n')[0] : undefined,  // Only keep the first line of the stack trace
         editCount: window.editCount
     };
 
     // Send to Qualtrics
-    const currentLogs = window.parent.postMessage({
+    window.parent.postMessage({
         action: 'setEmbeddedData',
         key: 'ERROR_LOG',
         value: JSON.stringify(errorLog)
@@ -476,6 +476,14 @@ async function submitEdit() {
         const mode = activeTab.dataset.mode;
         console.log('Selected mode:', mode);
 
+        // Check for selection when needed
+        if (paths.length === 0 && !['reimagine', 'replacebg'].includes(mode)) {
+            const error = new Error('Please make a selection first');
+            // Remove the URL from the error stack
+            error.stack = error.stack.split('\n')[0];
+            throw error;
+        }
+
         historyManager.addVersion(window.imageData, window.editCount);
 
         if (promptInput.value.length > 1000) {
@@ -507,10 +515,6 @@ async function submitEdit() {
             }
         }
         
-        if (paths.length === 0 && !['reimagine', 'replacebg'].includes(mode)) {
-            throw new Error('Please make a selection first');
-        }
-
         button.disabled = true;
         form.classList.add('loading');
         errorDiv.classList.add('hidden');
@@ -600,7 +604,6 @@ async function submitEdit() {
 
     } catch (error) {
         logError(error, 'submitEdit');
-        // Still show user-friendly error
         showError('An error occurred while processing your request. Please try again.');
     } finally {
         if (form) form.classList.remove('loading');
