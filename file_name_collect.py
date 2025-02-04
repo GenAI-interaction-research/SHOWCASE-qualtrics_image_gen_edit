@@ -2,9 +2,12 @@ import os
 import csv
 import cloudinary
 import cloudinary.api
+import dropbox
 from dotenv import load_dotenv
 from datetime import datetime
 from collections import defaultdict, Counter
+import requests
+from io import BytesIO
 
 # Load environment variables
 load_dotenv()
@@ -15,6 +18,10 @@ cloudinary.config(
     api_key = os.getenv('CLOUDINARY_API_KEY'),
     api_secret = os.getenv('CLOUDINARY_API_SECRET')
 )
+
+# Configure Dropbox
+DROPBOX_ACCESS_TOKEN = os.getenv('DROPBOX_ACCESS_TOKEN')
+dbx = dropbox.Dropbox(DROPBOX_ACCESS_TOKEN)
 
 def parse_timestamp(filename):
     try:
@@ -50,6 +57,46 @@ def get_all_cloudinary_filenames():
             break
     
     return all_filenames
+
+def save_latest_images_to_dropbox(sorted_data):
+    # Group files by session_id
+    session_files = defaultdict(list)
+    for row in sorted_data:
+        session_files[row['session_id']].append({
+            'filename': row['filename'],
+            'timestamp': row['timestamp']
+        })
+    
+    # Get latest file for each session
+    for session_id, files in session_files.items():
+        # Sort files by timestamp and get the latest one
+        latest_file = sorted(files, key=lambda x: x['timestamp'])[-1]
+        
+        try:
+            # Construct the Cloudinary URL directly
+            cloud_name = os.getenv('CLOUDINARY_CLOUD_NAME')
+            cloudinary_url = f"https://res.cloudinary.com/{cloud_name}/image/upload/qualtrics_images/{latest_file['filename']}"
+            
+            # Download the image
+            response = requests.get(cloudinary_url)
+            response.raise_for_status()
+            
+            # Prepare the image data
+            image_data = BytesIO(response.content)
+            
+            # Add .png extension to the Dropbox filename
+            dropbox_path = f"/latest_images/{session_id}_{latest_file['filename']}.png"
+            
+            dbx.files_upload(
+                image_data.getvalue(),
+                dropbox_path,
+                mode=dropbox.files.WriteMode.overwrite
+            )
+            print(f"Successfully uploaded image for session {session_id} to Dropbox")
+            
+        except Exception as e:
+            print(f"Error uploading image for session {session_id}: {str(e)}")
+            continue
 
 def process_files():
     # Get all files
@@ -96,3 +143,7 @@ if __name__ == "__main__":
     print(f"Total files processed: {len(sorted_data)}")
     print(f"Total unique sessions: {len(set(row['session_id'] for row in sorted_data))}")
     print(f"Files have been saved to: {os.path.abspath(csv_filename)}")
+    
+    # Save latest images to Dropbox
+    print("\nUploading latest images to Dropbox...")
+    save_latest_images_to_dropbox(sorted_data)
