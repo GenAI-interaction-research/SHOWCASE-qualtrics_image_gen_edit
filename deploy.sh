@@ -1,11 +1,12 @@
 #!/bin/bash
 
-# Load Balancer IP
-LB_IP="64.227.89.229"
+# Configuration
+DROPLET_IP="146.190.127.235"
+SSH_KEY="C:/Users/joerling/Dropbox/0_Forschung/1_Paper/GPT Qualtrics/qualtrics_stable-diffusion_backed/SSH_KEY"
 
-echo "Deploying through load balancer at $LB_IP..."
+echo "Deploying to droplet at $DROPLET_IP..."
 
-ssh -i "/c/Users/joerling/OneDrive - Aescra Emlyon Business School/Desktop/SSH_KEY.txt" root@$LB_IP '
+ssh -i "$SSH_KEY" root@$DROPLET_IP '
 # Install Docker if not present
 if ! command -v docker &> /dev/null; then
     curl -fsSL https://get.docker.com -o get-docker.sh
@@ -71,4 +72,4 @@ docker stop $(docker ps -q) || true
 docker run -d --env-file .env -p 80:8080 --restart unless-stopped flask-app
 '
 
-echo "Deployment completed!" 
+echo "Deployment completed!"
