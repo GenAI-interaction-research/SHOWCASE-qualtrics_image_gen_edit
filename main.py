@@ -350,6 +350,32 @@ def create_app():
             logger.error(f"Error saving image: {str(e)}")
             return jsonify({'success': False, 'error': str(e)}), 500
 
+    @app.route('/health')
+    def health_check():
+        try:
+            # Check if we can access environment variables
+            if not all([
+                os.getenv('CLIPDROP_API_KEY'),
+                os.getenv('RECRAFT_API_KEY'),
+                os.getenv('CLOUDINARY_CLOUD_NAME'),
+                os.getenv('CLOUDINARY_API_KEY'),
+                os.getenv('CLOUDINARY_API_SECRET')
+            ]):
+                return jsonify({
+                    'status': 'unhealthy',
+                    'message': 'Missing required environment variables'
+                }), 500
+
+            return jsonify({
+                'status': 'healthy',
+                'timestamp': datetime.now().isoformat()
+            }), 200
+        except Exception as e:
+            return jsonify({
+                'status': 'unhealthy',
+                'error': str(e)
+            }), 500
+
     @app.errorhandler(404)
     def page_not_found(e):
         # Check if the request was for the generate page
