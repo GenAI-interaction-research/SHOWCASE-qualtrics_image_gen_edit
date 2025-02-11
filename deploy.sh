@@ -25,6 +25,9 @@ deploy_to_droplet() {
     local DROPLET_IP=$1
     echo "Starting deployment to $DROPLET_IP..."
 
+    # First, copy the .env file
+    scp -o StrictHostKeyChecking=no .env root@$DROPLET_IP:/root/
+
     ssh -o StrictHostKeyChecking=no root@$DROPLET_IP '
     # Install Docker if not present
     if ! command -v docker &> /dev/null; then
@@ -44,16 +47,29 @@ deploy_to_droplet() {
     git clone https://mojoe3987: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@github.com/mojoe3987/qualtrics_stable-diffusion_backed.git app
     cd app
 
-    # Stop and remove existing containers
-    docker stop $(docker ps -q) || true
-    docker rm $(docker ps -a -q) || true
+    # Copy .env file from root to app directory
+    cp /root/.env .
+
+    # Stop and remove existing containers (only if they exist)
+    docker ps -q | xargs -r docker stop
+    docker ps -a -q | xargs -r docker rm
 
     # Build and run with Docker
     docker build -t flask-app .
     docker run -d --env-file .env -p 80:8080 --restart unless-stopped flask-app
+    
+    # Verify container is running
+    if [ "$(docker ps -q)" ]; then
+        echo "Container successfully started"
+        exit 0
+    else
+        echo "Container failed to start"
+        exit 1
+    fi
     ' 2>&1 | tee "/tmp/deploy_${DROPLET_IP}.log"
 
-    if [ $? -eq 0 ]; then
+    # Check if deployment was successful
+    if grep -q "Container successfully started" "/tmp/deploy_${DROPLET_IP}.log"; then
         echo "✅ Successfully deployed to $DROPLET_IP"
         return 0
     else
@@ -80,7 +96,7 @@ wait
 
 # Count successes and failures from log files
 for ip in "${DROPLET_IPS[@]}"; do
-    if grep -q "Successfully deployed" "/tmp/deploy_${ip}.log"; then
+    if grep -q "Container successfully started" "/tmp/deploy_${ip}.log"; then
         ((successful_deploys++))
     else
         ((failed_deploys++))
