@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, Response, session
+from flask import Flask, request, jsonify, render_template, Response, session, redirect, url_for, make_response
 from flask_cors import CORS
 import logging
 from PIL import Image
@@ -35,9 +35,27 @@ def create_app():
     load_dotenv()
     app = Flask(__name__, static_url_path='', static_folder='static')
     app.config['MAX_CONTENT_LENGTH'] = 32 * 1024 * 1024
-    app.wsgi_app = ProxyFix(app.wsgi_app)
+    
+    # Configure proper proxy headers for load balancer
+    app.wsgi_app = ProxyFix(
+        app.wsgi_app,
+        x_for=1,        # Number of proxy servers
+        x_proto=1,      # Number of SSL termination proxies
+        x_host=1,       # Number of proxies that set X-Forwarded-Host
+        x_prefix=1      # Number of proxies that set X-Forwarded-Prefix
+    )
+
     app.secret_key = os.getenv('SECRET_KEY', 'dev-key-123')
     
+    # Add cache control headers to all responses
+    @app.after_request
+    def add_header(response):
+        # Prevent caching to ensure fresh content
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response
+
     CORS(app, supports_credentials=True, resources={
         r"/*": {
             "origins": [
@@ -106,6 +124,10 @@ def create_app():
     @app.route('/edit', methods=['POST'])
     def edit():
         try:
+            logger.info("Edit route accessed")
+            logger.info(f"Headers: {dict(request.headers)}")
+            logger.info(f"Form data keys: {list(request.form.keys())}")
+            
             image_data = request.form.get('image')
             edit_count = request.form.get('edit_count', 1)
             style = request.form.get('style', '')
@@ -115,23 +137,31 @@ def create_app():
             logger.info(f"Edit route received session_id: {session_id}")
 
             if not image_data:
-                return jsonify({'success': False, 'error': 'No image data provided'}), 400
+                logger.error("No image data provided")
+                return redirect(url_for('index'))
 
             try:
                 edit_count = int(edit_count)
             except ValueError:
+                logger.warning(f"Invalid edit_count value: {edit_count}, defaulting to 1")
                 edit_count = 1
 
-            return render_template('edit.html',
-                                image_data=image_data,
-                                edit_count=edit_count,
-                                style=style,
-                                mode=mode,
-                                session_id=session_id)
+            response = make_response(render_template('edit.html',
+                                                  image_data=image_data,
+                                                  edit_count=edit_count,
+                                                  style=style,
+                                                  mode=mode,
+                                                  session_id=session_id))
+            
+            # Add additional headers for stability
+            response.headers['Connection'] = 'keep-alive'
+            response.headers['Keep-Alive'] = 'timeout=60'
+            
+            return response
 
         except Exception as e:
             logger.error(f"Edit error: {str(e)}")
-            return jsonify({'success': False, 'error': str(e)}), 500
+            return redirect(url_for('index'))
 
     @app.route('/direct-modification', methods=['POST'])
     def direct_modification():
@@ -378,58 +408,16 @@ def create_app():
 
     @app.errorhandler(404)
     def page_not_found(e):
-        # Check if the request was for the generate page
-        is_generate = request.path == '/'
+        logger.error(f"404 Error Details:")
+        logger.error(f"Path: {request.path}")
+        logger.error(f"Referrer: {request.referrer}")
+        logger.error(f"Session ID: {request.form.get('session_id')}")
+        logger.error(f"Form data: {request.form}")
+        logger.error(f"Headers: {dict(request.headers)}")
+        logger.error(f"Method: {request.method}")
         
-        button_html = '''
-            <button onclick="window.location.href = window.location.href" style="background: #007bff; color: white; 
-                border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
-                Try Again
-            </button>
-        ''' if is_generate else '''
-            <button onclick="window.history.back()" style="background: #007bff; color: white; 
-                border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">
-                Return to Previous Page
-            </button>
-        '''
-
-        error_html = f'''
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Page Not Found</title>
-            <style>
-                body {{
-                    font-family: Arial, sans-serif;
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    height: 100vh;
-                    margin: 0;
-                    background-color: #f5f5f5;
-                }}
-                .error-container {{
-                    text-align: center;
-                    background: white;
-                    padding: 2rem;
-                    border-radius: 8px;
-                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                    max-width: 80%;
-                }}
-                h1 {{ color: #333; margin-bottom: 1rem; }}
-                p {{ color: #666; margin-bottom: 1.5rem; }}
-            </style>
-        </head>
-        <body>
-            <div class="error-container">
-                <h1>Page Not Found</h1>
-                <p>The page you're looking for couldn't be loaded.</p>
-                {button_html}
-            </div>
-        </body>
-        </html>
-        '''
-        return error_html, 404
+        # Automatically redirect back to generator
+        return redirect(url_for('index'))
 
     return app
 

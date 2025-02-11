@@ -1,75 +1,115 @@
 #!/bin/bash
 
 # Configuration
-DROPLET_IP="146.190.127.235"
+DROPLET_IPS=(
+    "146.190.127.235"
+    "24.199.108.12"
+    "24.199.103.191"
+    "146.190.117.216"
+    "146.190.55.253"
+    "146.190.36.217"
+    "146.190.120.213"
+    "24.199.102.116"
+    "146.190.61.16"
+    "24.199.108.86"
+)
 SSH_KEY="C:/Users/joerling/Dropbox/0_Forschung/1_Paper/GPT Qualtrics/qualtrics_stable-diffusion_backed/SSH_KEY"
 
-echo "Deploying to droplet at $DROPLET_IP..."
+# Start SSH agent and add key
+eval $(ssh-agent -s)
+echo "Adding SSH key..."
+ssh-add "$SSH_KEY"
 
-ssh -i "$SSH_KEY" root@$DROPLET_IP '
-# Install Docker if not present
-if ! command -v docker &> /dev/null; then
-    curl -fsSL https://get.docker.com -o get-docker.sh
-    sh get-docker.sh
+# Function to deploy to a single droplet
+deploy_to_droplet() {
+    local DROPLET_IP=$1
+    echo "Starting deployment to $DROPLET_IP..."
+
+    ssh -o StrictHostKeyChecking=no root@$DROPLET_IP '
+    # Install Docker if not present
+    if ! command -v docker &> /dev/null; then
+        curl -fsSL https://get.docker.com -o get-docker.sh
+        sh get-docker.sh
+    fi
+
+    # Install Git if not present
+    if ! command -v git &> /dev/null; then
+        apt-get update
+        apt-get install -y git
+    fi
+
+    # Clone or update the repository
+    cd /root
+    rm -rf app
+    git clone https://mojoe3987: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@github.com/mojoe3987/qualtrics_stable-diffusion_backed.git app
+    cd app
+
+    # Stop and remove existing containers
+    docker stop $(docker ps -q) || true
+    docker rm $(docker ps -a -q) || true
+
+    # Build and run with Docker
+    docker build -t flask-app .
+    docker run -d --env-file .env -p 80:8080 --restart unless-stopped flask-app
+    ' 2>&1 | tee "/tmp/deploy_${DROPLET_IP}.log"
+
+    if [ $? -eq 0 ]; then
+        echo "✅ Successfully deployed to $DROPLET_IP"
+        return 0
+    else
+        echo "❌ Failed to deploy to $DROPLET_IP"
+        return 1
+    fi
+}
+
+# Initialize counters
+successful_deploys=0
+failed_deploys=0
+failed_ips=()
+
+echo "Starting batch deployment to ${#DROPLET_IPS[@]} droplets..."
+echo "-------------------------------------------"
+
+# Deploy to all droplets in parallel
+for ip in "${DROPLET_IPS[@]}"; do
+    deploy_to_droplet "$ip" &
+done
+
+# Wait for all deployments to complete
+wait
+
+# Count successes and failures from log files
+for ip in "${DROPLET_IPS[@]}"; do
+    if grep -q "Successfully deployed" "/tmp/deploy_${ip}.log"; then
+        ((successful_deploys++))
+    else
+        ((failed_deploys++))
+        failed_ips+=($ip)
+    fi
+    rm "/tmp/deploy_${ip}.log"
+done
+
+# Print summary
+echo "-------------------------------------------"
+echo "Deployment Summary:"
+echo "✅ Successful deployments: $successful_deploys"
+echo "❌ Failed deployments: $failed_deploys"
+if [ ${#failed_ips[@]} -gt 0 ]; then
+    echo "Failed IPs:"
+    for ip in "${failed_ips[@]}"; do
+        echo "  - $ip"
+    done
 fi
+echo "-------------------------------------------"
 
-# Install Git if not present
-if ! command -v git &> /dev/null; then
-    apt-get update
-    apt-get install -y git
+# Cleanup SSH agent
+ssh-agent -k
+
+# Exit with status based on success
+if [ $failed_deploys -eq 0 ]; then
+    echo "All deployments completed successfully!"
+    exit 0
+else
+    echo "Some deployments failed. Please check the logs above."
+    exit 1
 fi
-
-# Clone or update the repository
-cd /root
-rm -rf app
-git clone https://mojoe3987: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@github.com/mojoe3987/qualtrics_stable-diffusion_backed.git app
-cd app
-
-# Create Dockerfile
-echo "FROM python:3.9-slim
-
-WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    python3-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-COPY . .
-
-# Set Flask environment variables
-ENV FLASK_APP=main.py
-ENV FLASK_ENV=production
-ENV MAX_CONTENT_LENGTH=52428800
-
-CMD [\"python\", \"main.py\"]" > Dockerfile
-
-# Create requirements.txt if it doesnt exist
-echo "flask==2.0.1
-cloudinary==1.37.0
-Pillow==10.2.0
-flask-cors==4.0.0
-python-dotenv==1.0.0
-requests==2.31.0
-Werkzeug==2.0.1" > requirements.txt
-
-# Create .env file
-echo "CLIPDROP_API_KEY=6e51e9b7ff359c9fa50d086fe7abeb6a24dfe423fc4122e85e2d04b69924718bc2f9aff73c1d778df43b21d74092c192
-RECRAFT_API_KEY=6gu41BkgNuKrkox2lLjKIHV3sWWeoiAum6BK6jQKxMIJSTKvvDjUOPsK2xSKbu5k
-CLOUDINARY_CLOUD_NAME=ddzia7e31
-CLOUDINARY_API_KEY=368358624844357
-CLOUDINARY_API_SECRET=_z_uvIY_xR93aIlq0OE00zKI8z8
-SECRET_KEY=dev-key-123
-MAX_CONTENT_LENGTH=52428800" > .env
-
-# Build and run with Docker
-docker build -t flask-app .
-docker stop $(docker ps -q) || true
-docker run -d --env-file .env -p 80:8080 --restart unless-stopped flask-app
-'
-
-echo "Deployment completed!"
