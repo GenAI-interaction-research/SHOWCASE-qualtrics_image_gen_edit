@@ -259,17 +259,8 @@
             document.getElementById('spinner').style.display = 'block';
 
             try {
-                // Increment generation count before the fetch
                 generationCount++;
-                incrementInteractionCount();
                 
-                // Send to Qualtrics
-                window.parent.postMessage({
-                    action: 'setEmbeddedData',
-                    key: 'GENERATION_COUNT',
-                    value: generationCount
-                }, '*');
-
                 const response = await fetch('/generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },

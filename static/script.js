@@ -357,11 +357,6 @@ async function undoEdit(previousVersion) {
             value: window.editCount
         }, '*');
 
-        // Add this line to increment interaction count
-        window.parent.postMessage({
-            action: 'incrementInteraction'
-        }, '*');
-
     } catch (error) {
         logError(error, 'undoEdit');
         showError('Failed to undo last edit. Please try again.');
@@ -537,7 +532,6 @@ async function submitEdit() {
         const formData = new FormData();
         formData.append('image', compressedBase64);
         window.editCount++;  // Increment before sending
-        incrementInteractionCount();
         updateEditCountDisplay();  // Update display
         formData.append('edit_count', window.editCount);
         formData.append('mode', mode);
@@ -610,7 +604,6 @@ async function submitEdit() {
         // Only increment edit count if we're actually making changes
         // (i.e., if we get to this point in the code)
         window.editCount++;
-        incrementInteractionCount();
         updateEditCountDisplay();
 
         // Update Qualtrics with new edit count
