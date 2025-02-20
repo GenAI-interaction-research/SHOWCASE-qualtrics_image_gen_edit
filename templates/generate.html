@@ -326,6 +326,11 @@
                         generatedImage.src = URL.createObjectURL(imageBlob);
                         result.classList.remove('hidden');
 
+                        // >>> Now increment the Qualtrics counter ONCE for generation:
+                        window.parent.postMessage({
+                            action: 'incrementInteraction'
+                        }, '*');
+
                     } catch (cloudinaryError) {
                         logError(cloudinaryError, 'cloudinarySave');
                         error.textContent = 'An error occurred while saving the image. Please try again.';
