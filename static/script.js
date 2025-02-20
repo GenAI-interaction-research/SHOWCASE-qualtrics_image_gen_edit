@@ -357,7 +357,10 @@ async function undoEdit(previousVersion) {
             value: window.editCount
         }, '*');
 
-        incrementInteractionCount();
+        // Add this line to increment interaction count
+        window.parent.postMessage({
+            action: 'incrementInteraction'
+        }, '*');
 
     } catch (error) {
         logError(error, 'undoEdit');
