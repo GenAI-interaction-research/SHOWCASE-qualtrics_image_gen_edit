@@ -299,23 +299,25 @@
                         const cloudinaryData = await cloudinaryResponse.json();
                         
                         if (cloudinaryData.url) {
-                            console.log('Full Cloudinary URL:', cloudinaryData.url);
+                            const fullUrl = cloudinaryData.url;  // Store the full URL
                             
-                            // Send to Qualtrics with correct key
+                            // Log the complete URL and its length
+                            console.log('Complete Cloudinary URL:', fullUrl);
+                            console.log('URL length:', fullUrl.length);
+                            console.log('URL components:', {
+                                base: fullUrl.split('/upload/')[0],
+                                path: fullUrl.split('/upload/')[1]
+                            });
+                            
+                            // Send to Qualtrics with complete URL
                             window.parent.postMessage({
                                 action: 'setEmbeddedData',
-                                key: 'lastGeneratedImage',  // For Qualtrics
-                                value: cloudinaryData.url
+                                key: 'lastGeneratedImage',
+                                value: fullUrl
                             }, '*');
                             
-                            // The edit function still works because it uses generatedImage.src
-                            // which was set earlier with: generatedImage.src = reader.result
-                            
-                            console.log('Sending to Qualtrics:', {
-                                action: 'setEmbeddedData',
-                                key: 'lastGeneratedImage',
-                                value: cloudinaryData.url
-                            });
+                            // Also log the raw cloudinaryData
+                            console.log('Full Cloudinary response:', cloudinaryData);
                         } else {
                             console.error('No URL in Cloudinary response');
                         }
