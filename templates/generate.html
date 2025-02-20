@@ -284,7 +284,7 @@
                     result.classList.remove('hidden');
 
                     // Save to Cloudinary
-                    console.log('Saving to Cloudinary...');
+                    console.log('Starting Cloudinary save...');
                     try {
                         const cloudinaryResponse = await fetch('/save-final-image', {
                             method: 'POST',
@@ -297,19 +297,29 @@
                             })
                         });
 
+                        console.log('Cloudinary response status:', cloudinaryResponse.status);
+                        
                         if (!cloudinaryResponse.ok) {
-                            console.error('Failed to save to Cloudinary:', await cloudinaryResponse.text());
+                            const errorText = await cloudinaryResponse.text();
+                            console.error('Failed to save to Cloudinary:', errorText);
                         } else {
-                            console.log('Saved to Cloudinary');
                             const cloudinaryData = await cloudinaryResponse.json();
-                            window.parent.postMessage({
-                                action: 'setEmbeddedData',
-                                key: 'url',
-                                value: cloudinaryData.url
-                            }, '*');
+                            console.log('Cloudinary success! Data:', cloudinaryData);
+                            
+                            if (cloudinaryData.url) {
+                                console.log('Image URL:', cloudinaryData.url);
+                                window.parent.postMessage({
+                                    action: 'setEmbeddedData',
+                                    key: 'url',
+                                    value: cloudinaryData.url
+                                }, '*');
+                            } else {
+                                console.error('No URL in Cloudinary response');
+                            }
                         }
                     } catch (cloudinaryError) {
                         console.error('Error saving to Cloudinary:', cloudinaryError);
+                        console.error('Error details:', cloudinaryError.message);
                     }
                 }
 
