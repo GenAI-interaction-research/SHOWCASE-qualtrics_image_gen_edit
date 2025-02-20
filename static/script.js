@@ -769,3 +769,44 @@ window.addEventListener('message', function(event) {
         updateProgressBar();
     }
 });
+
+async function saveToCloudinary(imageData) {
+    if (!window.SESSION_ID) {
+        throw new Error('No session ID available for saving to Cloudinary');
+    }
+
+    try {
+        const response = await fetch('/save-final-image', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                image: imageData,
+                session_id: window.SESSION_ID
+            })
+        });
+        
+        const result = await response.json();
+        if (!result.success) {
+            throw new Error(result.error || 'Failed to save image');
+        }
+        
+        // Send the image URL back to Qualtrics
+        window.parent.postMessage({
+            action: 'setEmbeddedData',
+            key: 'Base64',
+            value: result.url
+        }, '*');
+
+        // Add this: Increment interaction count whenever an image is saved
+        window.parent.postMessage({
+            action: 'incrementInteraction'
+        }, '*');
+        
+        return result;
+    } catch (error) {
+        console.error('Error saving to Cloudinary:', error);
+        throw error;
+    }
+}
