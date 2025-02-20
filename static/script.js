@@ -71,6 +71,7 @@ let path;
 let historyManager;
 let addPrompts = [];
 let backgroundPrompts = [];
+let totalInteractions = parseInt(localStorage.getItem('totalInteractions') || '0');
 
 // Initialize Paper.js canvas and tools
 function initializePaperCanvas() {
@@ -362,6 +363,8 @@ async function undoEdit(previousVersion) {
             value: window.editCount
         }, '*');
 
+        incrementInteractionCount();
+
     } catch (error) {
         logError(error, 'undoEdit');
         showError('Failed to undo last edit. Please try again.');
@@ -537,6 +540,7 @@ async function submitEdit() {
         const formData = new FormData();
         formData.append('image', compressedBase64);
         window.editCount++;  // Increment before sending
+        incrementInteractionCount();
         updateEditCountDisplay();  // Update display
         formData.append('edit_count', window.editCount);
         formData.append('mode', mode);
@@ -609,6 +613,7 @@ async function submitEdit() {
         // Only increment edit count if we're actually making changes
         // (i.e., if we get to this point in the code)
         window.editCount++;
+        incrementInteractionCount();
         updateEditCountDisplay();
 
         // Update Qualtrics with new edit count
@@ -752,4 +757,17 @@ if (editButton) {  // Only add listener if button exists
             logError(error, 'editPageTransition');
         }
     });
+}
+
+function incrementInteractionCount() {
+    totalInteractions++;
+    // Store in localStorage
+    localStorage.setItem('totalInteractions', totalInteractions);
+    // Send to Qualtrics
+    window.parent.postMessage({
+        action: 'setEmbeddedData',
+        key: 'TOTAL_INTERACTIONS',
+        value: totalInteractions
+    }, '*');
+    console.log('Total interactions:', totalInteractions);
 }
