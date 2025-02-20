@@ -761,13 +761,20 @@ if (editButton) {  // Only add listener if button exists
 
 function incrementInteractionCount() {
     totalInteractions++;
-    // Store in localStorage
     localStorage.setItem('totalInteractions', totalInteractions);
-    // Send to Qualtrics
     window.parent.postMessage({
         action: 'setEmbeddedData',
         key: 'TOTAL_INTERACTIONS',
         value: totalInteractions
     }, '*');
+    
+    // Enable continue button if we've reached 5 interactions
+    if (totalInteractions >= 5) {
+        window.parent.postMessage({
+            action: 'enableContinue',
+            completed: true
+        }, '*');
+    }
+    
     console.log('Total interactions:', totalInteractions);
 }
