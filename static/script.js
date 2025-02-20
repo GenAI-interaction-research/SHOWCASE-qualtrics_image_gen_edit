@@ -590,12 +590,12 @@ async function submitEdit() {
             reader.readAsDataURL(blob2);
         });
         
-        // Save the edited image to Cloudinary
+        // Save to Cloudinary
         console.log('Saving to Cloudinary...');
-        await saveToCloudinary(base64Data);
+        const result = await saveToCloudinary(base64Data);
         console.log('Saved to Cloudinary');
 
-        // Add this right after the Cloudinary save:
+        // Now we can safely use result
         if (result && result.url) {
             // Send the Cloudinary URL to Qualtrics
             window.parent.postMessage({
