@@ -770,12 +770,14 @@ async function saveToCloudinary(imageData) {
             throw new Error(result.error || 'Failed to save image');
         }
 
-        // >>> IMPORTANT: This line notifies Qualtrics to increment total count
+        // ►► The ONLY place we increment the Qualtrics counter:
         window.parent.postMessage({
             action: 'incrementInteraction'
         }, '*');
 
-        // Optionally also set embedded data for debugging or other usage:
+        // Optionally also store the Cloudinary URL—
+        // but do NOT also increment in your Qualtrics code for setEmbeddedData if
+        // you want to avoid double increments
         window.parent.postMessage({
             action: 'setEmbeddedData',
             key: 'Base64',
