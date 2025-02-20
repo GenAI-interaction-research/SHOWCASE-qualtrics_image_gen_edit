@@ -595,6 +595,17 @@ async function submitEdit() {
         await saveToCloudinary(base64Data);
         console.log('Saved to Cloudinary');
 
+        // Add this right after the Cloudinary save:
+        if (result && result.url) {
+            // Send the Cloudinary URL to Qualtrics
+            window.parent.postMessage({
+                action: 'setEmbeddedData',
+                key: 'lastGeneratedImage',
+                value: result.url
+            }, '*');
+            console.log('Sent Cloudinary URL to Qualtrics:', result.url);
+        }
+
         // Only increment edit count if we're actually making changes
         // (i.e., if we get to this point in the code)
         window.editCount++;
