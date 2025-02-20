@@ -350,7 +350,7 @@ async function undoEdit(previousVersion) {
         
         console.log('Canvas updated with previous version');
 
-        // Add this: Send updated edit count to Qualtrics
+        // Keep this - it's for tracking edit count, not interactions
         window.parent.postMessage({
             action: 'setEmbeddedData',
             key: 'EDIT_COUNT',
