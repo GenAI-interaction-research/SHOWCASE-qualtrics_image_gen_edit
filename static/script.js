@@ -769,19 +769,19 @@ async function saveToCloudinary(imageData) {
         if (!result.success) {
             throw new Error(result.error || 'Failed to save image');
         }
-        
-        // Send the image URL back to Qualtrics
+
+        // >>> IMPORTANT: This line notifies Qualtrics to increment total count
+        window.parent.postMessage({
+            action: 'incrementInteraction'
+        }, '*');
+
+        // Optionally also set embedded data for debugging or other usage:
         window.parent.postMessage({
             action: 'setEmbeddedData',
             key: 'Base64',
             value: result.url
         }, '*');
 
-        // Add this: Increment interaction count whenever an image is saved
-        window.parent.postMessage({
-            action: 'incrementInteraction'
-        }, '*');
-        
         return result;
     } catch (error) {
         console.error('Error saving to Cloudinary:', error);
