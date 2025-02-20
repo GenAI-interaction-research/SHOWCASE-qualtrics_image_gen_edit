@@ -27,6 +27,21 @@
     </style>
 </head>
 <body class="bg-gray-50">
+    <div class="bg-white shadow-sm">
+        <div class="container mx-auto px-4 py-3">
+            <div class="flex items-center justify-between">
+                <div class="flex-1 max-w-2xl mx-auto">
+                    <div class="text-center mb-2 text-gray-600" id="progressText">
+                        Loading...
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                        <div class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" id="progressBar" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="container mx-auto px-4 py-8">
         <div class="max-w-2xl mx-auto bg-white rounded-lg shadow p-6">
             <h1 class="text-2xl font-bold mb-6">Image Generator</h1>
@@ -105,6 +120,7 @@
 
         let generationCount = 0;
         let generatePrompts = [];
+        let totalInteractions = parseInt(localStorage.getItem('totalInteractions') || '0');
 
         const form = document.getElementById('generateForm');
         const error = document.getElementById('error');
@@ -116,8 +132,22 @@
         let loadAttempts = 0;
         const maxAttempts = 3;
 
-        // Add near the top with other variables
-        let totalInteractions = parseInt(localStorage.getItem('totalInteractions') || '0');
+        function updateProgressBar() {
+            const progress = totalInteractions;
+            const remaining = Math.max(0, 5 - progress);
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            
+            const percentage = Math.min(100, (progress / 5) * 100);
+            progressBar.style.width = `${percentage}%`;
+            
+            if (remaining > 0) {
+                const stepWord = remaining === 1 ? 'step' : 'steps';
+                progressText.textContent = `${remaining} creative ${stepWord} left to perfect your birthday celebration!`;
+            } else {
+                progressText.textContent = 'Perfect! You\'ve completed all creative steps!';
+            }
+        }
 
         function incrementInteractionCount() {
             totalInteractions++;
@@ -128,7 +158,8 @@
                 value: totalInteractions
             }, '*');
             
-            // Enable continue button if we've reached 5 interactions
+            updateProgressBar();
+            
             if (totalInteractions >= 5) {
                 window.parent.postMessage({
                     action: 'enableContinue',
@@ -427,6 +458,10 @@
                 document.body.appendChild(form);
                 form.submit();
             }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            updateProgressBar();
         });
     </script>
 </body>
