@@ -344,6 +344,7 @@ def create_app():
     @app.route('/save-final-image', methods=['POST'])
     def save_final_image():
         try:
+            logger.info("=== Starting save-final-image endpoint ===")
             data = request.get_json()
             if not data:
                 logger.error("No data provided in request")
@@ -353,6 +354,7 @@ def create_app():
             session_id = data.get('session_id')
 
             logger.info(f"Received save request for session: {session_id}")
+            logger.info(f"Image data length: {len(image_data) if image_data else 0}")
             
             if not image_data:
                 return jsonify({'success': False, 'error': 'No image data provided'}), 400
@@ -365,22 +367,27 @@ def create_app():
             public_id = f"qualtrics_images/{session_id}_{timestamp}"
             
             logger.info(f"Uploading image for session ID: {session_id}")
+            logger.info(f"Public ID: {public_id}")
             
-            upload_result = cloudinary.uploader.upload(
-                f"data:image/jpeg;base64,{image_data}",
-                public_id=public_id,
-                tags=[session_id]
-            )
-
-            logger.info(f"Upload successful!")
-            logger.info(f"Cloudinary URL: {upload_result['secure_url']}")
-            logger.info(f"Public ID: {upload_result['public_id']}")
-            
-            return jsonify({
-                'success': True,
-                'url': upload_result['secure_url'],
-                'public_id': upload_result['public_id']
-            })
+            try:
+                upload_result = cloudinary.uploader.upload(
+                    f"data:image/jpeg;base64,{image_data}",
+                    public_id=public_id,
+                    tags=[session_id]
+                )
+                logger.info("=== Cloudinary Upload Result ===")
+                logger.info(f"Success: True")
+                logger.info(f"URL: {upload_result['secure_url']}")
+                logger.info(f"Public ID: {upload_result['public_id']}")
+                
+                return jsonify({
+                    'success': True,
+                    'url': upload_result['secure_url'],
+                    'public_id': upload_result['public_id']
+                })
+            except Exception as upload_error:
+                logger.error(f"Cloudinary upload error: {str(upload_error)}")
+                return jsonify({'success': False, 'error': f"Upload error: {str(upload_error)}"}), 500
 
         except Exception as e:
             logger.error(f"Error saving image: {str(e)}")
