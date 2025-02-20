@@ -120,7 +120,7 @@
 
         let generationCount = 0;
         let generatePrompts = [];
-        let totalInteractions = parseInt(localStorage.getItem('totalInteractions') || '0');
+        let totalInteractions = 0;
 
         const form = document.getElementById('generateForm');
         const error = document.getElementById('error');
@@ -150,24 +150,10 @@
         }
 
         function incrementInteractionCount() {
-            totalInteractions++;
-            localStorage.setItem('totalInteractions', totalInteractions);
+            // Just send message to Qualtrics to increment
             window.parent.postMessage({
-                action: 'setEmbeddedData',
-                key: 'TOTAL_INTERACTIONS',
-                value: totalInteractions
+                action: 'incrementInteraction'
             }, '*');
-            
-            updateProgressBar();
-            
-            if (totalInteractions >= 5) {
-                window.parent.postMessage({
-                    action: 'enableContinue',
-                    completed: true
-                }, '*');
-            }
-            
-            console.log('Total interactions:', totalInteractions);
         }
 
         function handleLoadError() {
@@ -462,6 +448,13 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             updateProgressBar();
+        });
+
+        window.addEventListener('message', function(event) {
+            if (event.data.action === 'updateInteractions') {
+                totalInteractions = event.data.value;
+                updateProgressBar();
+            }
         });
     </script>
 </body>

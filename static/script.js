@@ -71,7 +71,7 @@ let path;
 let historyManager;
 let addPrompts = [];
 let backgroundPrompts = [];
-let totalInteractions = parseInt(localStorage.getItem('totalInteractions') || '0');
+let totalInteractions = 0;
 
 // Initialize Paper.js canvas and tools
 function initializePaperCanvas() {
@@ -754,13 +754,15 @@ if (editButton) {  // Only add listener if button exists
 }
 
 function incrementInteractionCount() {
-    totalInteractions++;
-    localStorage.setItem('totalInteractions', totalInteractions);
+    // Just send message to Qualtrics to increment
     window.parent.postMessage({
-        action: 'setEmbeddedData',
-        key: 'TOTAL_INTERACTIONS',
-        value: totalInteractions
+        action: 'incrementInteraction'
     }, '*');
-    
-    console.log('Total interactions:', totalInteractions);
 }
+
+window.addEventListener('message', function(event) {
+    if (event.data.action === 'updateInteractions') {
+        totalInteractions = event.data.value;
+        updateProgressBar();
+    }
+});
