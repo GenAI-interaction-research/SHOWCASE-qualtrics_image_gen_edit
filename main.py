@@ -346,11 +346,14 @@ def create_app():
         try:
             data = request.get_json()
             if not data:
+                logger.error("No data provided in request")
                 return jsonify({'success': False, 'error': 'No data provided'}), 400
 
             image_data = data.get('image')
             session_id = data.get('session_id')
 
+            logger.info(f"Received save request for session: {session_id}")
+            
             if not image_data:
                 return jsonify({'success': False, 'error': 'No image data provided'}), 400
             if not session_id:
@@ -369,7 +372,10 @@ def create_app():
                 tags=[session_id]
             )
 
-            logger.info(f"Upload successful. URL: {upload_result['secure_url']}")
+            logger.info(f"Upload successful!")
+            logger.info(f"Cloudinary URL: {upload_result['secure_url']}")
+            logger.info(f"Public ID: {upload_result['public_id']}")
+            
             return jsonify({
                 'success': True,
                 'url': upload_result['secure_url'],

@@ -301,6 +301,12 @@
                             console.error('Failed to save to Cloudinary:', await cloudinaryResponse.text());
                         } else {
                             console.log('Saved to Cloudinary');
+                            const cloudinaryData = await cloudinaryResponse.json();
+                            window.parent.postMessage({
+                                action: 'setEmbeddedData',
+                                key: 'url',
+                                value: cloudinaryData.url
+                            }, '*');
                         }
                     } catch (cloudinaryError) {
                         console.error('Error saving to Cloudinary:', cloudinaryError);
