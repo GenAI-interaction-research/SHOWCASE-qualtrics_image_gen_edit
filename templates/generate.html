@@ -350,12 +350,6 @@
                         generatedImage.src = URL.createObjectURL(imageBlob);
                         result.classList.remove('hidden');
 
-                        // Enable continue after successful save and display
-                        window.parent.postMessage({
-                            action: 'enableContinue',
-                            completed: true
-                        }, '*');
-
                     } catch (cloudinaryError) {
                         logError(cloudinaryError, 'cloudinarySave');
                         error.textContent = 'An error occurred while saving the image. Please try again.';

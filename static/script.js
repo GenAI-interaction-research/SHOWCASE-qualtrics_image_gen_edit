@@ -298,12 +298,6 @@ function updateEditCountDisplay() {
     if (editCountDisplay) {
         editCountDisplay.textContent = 'Edit';  // Just show "Edit" without the count
     }
-    
-    // Always enable continue in edit mode
-    window.parent.postMessage({
-        action: 'enableContinue',
-        completed: true
-    }, '*');
 }
 
 async function undoEdit(previousVersion) {
@@ -767,14 +761,6 @@ function incrementInteractionCount() {
         key: 'TOTAL_INTERACTIONS',
         value: totalInteractions
     }, '*');
-    
-    // Enable continue button if we've reached 5 interactions
-    if (totalInteractions >= 5) {
-        window.parent.postMessage({
-            action: 'enableContinue',
-            completed: true
-        }, '*');
-    }
     
     console.log('Total interactions:', totalInteractions);
 }
