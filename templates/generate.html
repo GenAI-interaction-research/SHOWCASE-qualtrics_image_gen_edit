@@ -117,23 +117,6 @@
         let loadAttempts = 0;
         const maxAttempts = 3;
 
-        function updateProgressBar() {
-            const progress = totalInteractions;
-            const remaining = Math.max(0, 5 - progress);
-            const progressBar = document.getElementById('progressBar');
-            const progressText = document.getElementById('progressText');
-            
-            const percentage = Math.min(100, (progress / 5) * 100);
-            progressBar.style.width = `${percentage}%`;
-            
-            if (remaining > 0) {
-                const stepWord = remaining === 1 ? 'step' : 'steps';
-                progressText.textContent = `${remaining} creative ${stepWord} left to perfect your birthday celebration!`;
-            } else {
-                progressText.textContent = 'Perfect! You\'ve completed all creative steps!';
-            }
-        }
-
         function incrementInteractionCount() {
             // Just send message to Qualtrics to increment
             window.parent.postMessage({
@@ -431,14 +414,9 @@
             }
         });
 
-        document.addEventListener('DOMContentLoaded', () => {
-            updateProgressBar();
-        });
-
         window.addEventListener('message', function(event) {
             if (event.data.action === 'updateInteractions') {
                 totalInteractions = event.data.value;
-                updateProgressBar();
             }
         });
     </script>
