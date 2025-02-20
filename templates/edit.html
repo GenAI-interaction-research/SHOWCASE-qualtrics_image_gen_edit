@@ -254,6 +254,13 @@
        //    prolificId: window.PROLIFIC_PID
        //});
        //document.getElementById('pidValue').textContent = window.PROLIFIC_PID;
+
+       document.getElementById('undoButton').addEventListener('click', () => {
+           // Add this single line to count undo as an interaction
+           window.parent.postMessage({
+               action: 'incrementInteraction'
+           }, '*');
+       });
    </script>
    <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
