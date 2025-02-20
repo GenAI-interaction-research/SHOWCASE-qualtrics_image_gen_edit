@@ -279,13 +279,8 @@
                 const reader = new FileReader();
                 reader.readAsDataURL(imageBlob);
                 reader.onloadend = async function() {
-                    // Display the image
-                    generatedImage.src = reader.result;
-                    result.classList.remove('hidden');
-
-                    // Save to Cloudinary
-                    console.log('Starting Cloudinary save...');
                     try {
+                        // Save to Cloudinary first
                         const cloudinaryResponse = await fetch('/save-final-image', {
                             method: 'POST',
                             headers: {
@@ -297,37 +292,39 @@
                             })
                         });
 
-                        console.log('Cloudinary response status:', cloudinaryResponse.status);
-                        
                         if (!cloudinaryResponse.ok) {
-                            const errorText = await cloudinaryResponse.text();
-                            console.error('Failed to save to Cloudinary:', errorText);
-                        } else {
-                            const cloudinaryData = await cloudinaryResponse.json();
-                            console.log('Cloudinary success! Data:', cloudinaryData);
-                            
-                            if (cloudinaryData.url) {
-                                console.log('Image URL:', cloudinaryData.url);
-                                window.parent.postMessage({
-                                    action: 'setEmbeddedData',
-                                    key: 'url',
-                                    value: cloudinaryData.url
-                                }, '*');
-                            } else {
-                                console.error('No URL in Cloudinary response');
-                            }
+                            throw new Error('Failed to save to Cloudinary');
                         }
+
+                        const cloudinaryData = await cloudinaryResponse.json();
+                        
+                        if (!cloudinaryData.url) {
+                            throw new Error('No URL in Cloudinary response');
+                        }
+
+                        // Display the image using Cloudinary URL
+                        generatedImage.src = cloudinaryData.url;
+                        result.classList.remove('hidden');
+
+                        // Save URL to Qualtrics
+                        window.parent.postMessage({
+                            action: 'setEmbeddedData',
+                            key: 'url',
+                            value: cloudinaryData.url
+                        }, '*');
+
+                        // Enable continue after successful save and display
+                        window.parent.postMessage({
+                            action: 'enableContinue',
+                            completed: true
+                        }, '*');
+
                     } catch (cloudinaryError) {
-                        console.error('Error saving to Cloudinary:', cloudinaryError);
-                        console.error('Error details:', cloudinaryError.message);
+                        logError(cloudinaryError, 'cloudinarySave');
+                        error.textContent = 'An error occurred while saving the image. Please try again.';
+                        error.classList.remove('hidden');
                     }
                 }
-
-                // After successful generation, enable continue
-                window.parent.postMessage({
-                    action: 'enableContinue',
-                    completed: true
-                }, '*');
             } catch (err) {
                 logError(err, 'generateImage');
                 error.textContent = 'An error occurred while generating the image. Please try again.';
