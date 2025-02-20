@@ -329,24 +329,9 @@ async function undoEdit(previousVersion) {
             reader.readAsDataURL(blob);
         });
 
-        // Save to Cloudinary using save-final-image endpoint
+        // Save to Cloudinary using saveToCloudinary function instead of direct endpoint call
         console.log('Saving to Cloudinary...');
-        const cloudinaryResponse = await fetch('/save-final-image', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                image: base64Data,
-                session_id: window.SESSION_ID
-            })
-        });
-
-        if (!cloudinaryResponse.ok) {
-            console.error('Failed to save to Cloudinary:', await cloudinaryResponse.text());
-        } else {
-            console.log('Saved to Cloudinary');
-        }
+        await saveToCloudinary(base64Data);  // Changed this line to use saveToCloudinary function
         
         console.log('Canvas updated with previous version');
 
