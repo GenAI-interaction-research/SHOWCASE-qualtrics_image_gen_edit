@@ -304,38 +304,50 @@ async function undoEdit(previousVersion) {
     try {
         // Update window variables
         window.imageData = previousVersion.imageData;
-        window.editCount++;  // Increment the counter
-        updateEditCountDisplay();  // Update display
+        window.editCount++;
+        updateEditCountDisplay(); 
 
         // Update the canvas with the previous image
         const img = await loadImage(previousVersion.imageData);
         paper.project.clear();
         raster = new paper.Raster(img);
-        const scale = Math.min(paper.view.viewSize.width / img.width, paper.view.viewSize.height / img.height);
+        const scale = Math.min(
+            paper.view.viewSize.width / img.width,
+            paper.view.viewSize.height / img.height
+        );
         raster.scale(scale);
         raster.position = paper.view.center;
         paper.view.draw();
 
         // Clear any existing paths
         paths = [];
-        
-        // Save to Cloudinary
-        console.log('Converting to base64 for Cloudinary...');
+
+        // Convert the undone image to base64
         const response = await fetch(previousVersion.imageData);
         const blob = await response.blob();
         const reader = new FileReader();
-        const base64Data = await new Promise((resolve) => {
+        const base64Data = await new Promise(resolve => {
             reader.onloadend = () => resolve(reader.result);
             reader.readAsDataURL(blob);
         });
 
-        // Save to Cloudinary using saveToCloudinary function instead of direct endpoint call
-        console.log('Saving to Cloudinary...');
-        await saveToCloudinary(base64Data);  // Changed this line to use saveToCloudinary function
-        
+        // Save to Cloudinary
+        console.log('Saving undone version to Cloudinary...');
+        const result = await saveToCloudinary(base64Data);
+
+        // IMPORTANT: Update Qualtrics so it knows the "current" image is now this undone version
+        if (result && result.url) {
+            window.parent.postMessage({
+                action: 'setEmbeddedData',
+                key: 'lastGeneratedImage',
+                value: result.url
+            }, '*');
+            console.log('Updated lastGeneratedImage with undone version URL:', result.url);
+        }
+
         console.log('Canvas updated with previous version');
 
-        // Keep this - it's for tracking edit count, not interactions
+        // Update Qualtrics with the new edit count if desired
         window.parent.postMessage({
             action: 'setEmbeddedData',
             key: 'EDIT_COUNT',
