@@ -52,16 +52,6 @@
            <div class="mb-6">
                <div class="border-b border-gray-200">
                    <nav class="-mb-px flex" aria-label="Tabs">
-                       <button id="inpaintTab" 
-                               class="tab-width py-4 px-1 text-center border-b-2 {% if mode == 'inpaint' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500{% endif %} font-medium text-sm cursor-pointer"
-                               data-mode="inpaint">
-                           Add Elements
-                       </button>
-                       <button id="cleanupTab" 
-                               class="tab-width py-4 px-1 text-center border-b-2 {% if mode == 'cleanup' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500{% endif %} font-medium text-sm cursor-pointer"
-                               data-mode="cleanup">
-                           Delete Elements
-                       </button>
                        <button id="reimagineTab" 
                                class="tab-width py-4 px-1 text-center border-b-2 {% if mode == 'reimagine' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500{% endif %} font-medium text-sm cursor-pointer"
                                data-mode="reimagine">
@@ -71,6 +61,16 @@
                                class="tab-width py-4 px-1 text-center border-b-2 {% if mode == 'replacebg' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500{% endif %} font-medium text-sm cursor-pointer"
                                data-mode="replacebg">
                            Change Background
+                       </button>
+                       <button id="cleanupTab" 
+                               class="tab-width py-4 px-1 text-center border-b-2 {% if mode == 'cleanup' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500{% endif %} font-medium text-sm cursor-pointer"
+                               data-mode="cleanup">
+                           Delete Elements
+                       </button>
+                       <button id="inpaintTab" 
+                               class="tab-width py-4 px-1 text-center border-b-2 {% if mode == 'inpaint' %}border-blue-500 text-blue-600{% else %}border-transparent text-gray-500{% endif %} font-medium text-sm cursor-pointer"
+                               data-mode="inpaint">
+                           Add Elements
                        </button>
                    </nav>
                </div>

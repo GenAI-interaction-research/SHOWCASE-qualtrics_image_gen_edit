@@ -163,7 +163,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
-    const initialMode = 'inpaint';
+    // Set 'reimagine' as the initial mode if no mode is specified
+    const initialMode = 'reimagine';
     let activeTab = document.querySelector(`[data-mode="${initialMode}"]`);
     if (!activeTab) activeTab = document.querySelector('[data-mode]');
     if (activeTab) activateTab(activeTab);
