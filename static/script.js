@@ -3,6 +3,7 @@ class ImageHistory {
     constructor(maxSize = 10) {
         this.maxSize = maxSize;
         this.storageKey = 'imageEditHistory';
+        this.justUndone = false;
     }
 
     getHistory() {
@@ -17,6 +18,7 @@ class ImageHistory {
 
     addVersion(imageData, editCount) {
         try {
+            this.justUndone = false;
             let history = this.getHistory();
             history.push({
                 imageData,
@@ -39,11 +41,12 @@ class ImageHistory {
             if (history.length === 0) return null;
             const lastVersion = history.pop();
             localStorage.setItem(this.storageKey, JSON.stringify(history));
+            this.justUndone = true;
             this.updateUndoButton();
             return {
                 imageData: lastVersion.imageData,
                 editCount: lastVersion.editCount,
-                canUndo: history.length > 0
+                canUndo: false
             };
         } catch (error) {
             console.error('Error during undo:', error);
@@ -52,7 +55,7 @@ class ImageHistory {
     }
 
     canUndo() {
-        return this.getHistory().length > 0;
+        return this.getHistory().length > 0 && !this.justUndone;
     }
 
     updateUndoButton() {
