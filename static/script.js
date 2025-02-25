@@ -484,8 +484,6 @@ async function submitEdit() {
             throw new Error('Please make a selection first');
         }
 
-        historyManager.addVersion(window.imageData, window.editCount);
-
         if (promptInput.value.length > 1000) {
             promptInput.value = promptInput.value.substring(0, 1000);
         }
@@ -562,6 +560,11 @@ async function submitEdit() {
         // Handle the modified image
         const blob = await response.blob();
         const url = URL.createObjectURL(blob);
+        
+        // NOW save the current image before updating to the new one
+        historyManager.addVersion(window.imageData, window.editCount);
+        
+        // Update to the new image
         window.imageData = url;
         
         console.log('Updating canvas...');
