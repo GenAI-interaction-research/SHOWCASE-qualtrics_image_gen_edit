@@ -454,6 +454,26 @@ function containsWritingPrompt(prompt) {
     return writingKeywords.some(keyword => promptLower.includes(keyword));
 }
 
+async function fetchWithRetry(url, options, maxRetries = 3) {
+    let attempt = 0;
+    while (attempt < maxRetries) {
+        try {
+            const response = await fetch(url, options);
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || response.statusText || 'API request failed');
+            }
+            return response;
+        } catch (error) {
+            attempt++;
+            console.log(`Attempt ${attempt} failed. ${maxRetries - attempt} retries left.`);
+            if (attempt >= maxRetries) throw error;
+            // Exponential backoff
+            await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
+        }
+    }
+}
+
 async function submitEdit() {
     const form = document.getElementById('editForm');
     const promptInput = document.getElementById('prompt');
@@ -547,7 +567,7 @@ async function submitEdit() {
         
         console.log('Sending request to server...');
         // Use fetch API
-        const response = await fetch('/direct-modification', {
+        const response = await fetchWithRetry('/direct-modification', {
             method: 'POST',
             body: formData
         });
@@ -809,3 +829,72 @@ async function saveToCloudinary(imageData) {
         throw error;
     }
 }
+
+window.addEventListener('error', function(e) {
+    // Don't trigger for errors we're already handling
+    if (window.handlingError) return;
+    
+    window.handlingError = true;
+    
+    // Log error to console and Qualtrics
+    console.error('Unhandled error:', e.error || e.message);
+    
+    if (window.parent) {
+        window.parent.postMessage({
+            action: 'setEmbeddedData',
+            key: 'ERROR_LOG',
+            value: JSON.stringify({
+                timestamp: new Date().toISOString(),
+                message: e.error ? e.error.message : e.message,
+                stack: e.error ? e.error.stack : null,
+                location: window.location.href
+            })
+        }, '*');
+    }
+    
+    // Show user-friendly error with iframe-safe recovery options
+    const errorUI = document.createElement('div');
+    errorUI.innerHTML = `
+        <div style="position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(255,255,255,0.9); z-index:9999; display:flex; align-items:center; justify-content:center;">
+            <div style="background:white; max-width:80%; padding:20px; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.15); text-align:center;">
+                <h3 style="margin-bottom:10px; color:#e53e3e; font-weight:bold;">We encountered a problem</h3>
+                <p style="margin-bottom:15px;">Please try again. <strong>Do not refresh the survey page</strong> - only reset this tool.</p>
+                <button id="retryButton" style="background:#3182ce; color:white; border:none; padding:8px 16px; border-radius:4px; cursor:pointer;">Try Again</button>
+                <button id="resetButton" style="background:#718096; color:white; border:none; padding:8px 16px; border-radius:4px; margin-left:8px; cursor:pointer;">Reset Tool</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(errorUI);
+    
+    document.getElementById('retryButton').addEventListener('click', function() {
+        document.body.removeChild(errorUI);
+        window.handlingError = false;
+        // Try to recover current operation
+        if (window.currentOperation === 'edit') {
+            submitEdit().catch(err => console.error('Retry failed:', err));
+        } else if (window.currentOperation === 'generate') {
+            handleGenerate().catch(err => console.error('Retry failed:', err));
+        } else {
+            // Default recovery - just clear the error UI
+        }
+    });
+    
+    document.getElementById('resetButton').addEventListener('click', function() {
+        // Reset only this iframe content, not the entire Qualtrics page
+        // We can do this by navigating to the same URL but within the iframe context
+        const currentPath = window.location.pathname;
+        const queryParams = new URLSearchParams(window.location.search);
+        
+        // Preserve the session_id parameter if it exists
+        const sessionId = queryParams.get('session_id') || window.SESSION_ID;
+        
+        // Create a clean URL with just the session ID
+        let resetUrl = currentPath;
+        if (sessionId) {
+            resetUrl += `?session_id=${sessionId}`;
+        }
+        
+        // Navigate only within the iframe
+        window.location.href = resetUrl;
+    });
+});

@@ -54,6 +54,9 @@ def create_app():
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'
+        # Add headers to facilitate iframe embedding
+        response.headers['X-Frame-Options'] = 'ALLOW-FROM https://*.qualtrics.com'
+        response.headers['Content-Security-Policy'] = "frame-ancestors 'self' https://*.qualtrics.com"
         return response
 
     CORS(app, supports_credentials=True, resources={
