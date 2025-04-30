@@ -4,3 +4,20 @@ __pycache__/
 .DS_Store
 .vscode/
 .idea/
+
+# Deployment scripts (potentially contain secrets/infra details)
+deploy.sh
+
+# SSH private keys
+SSH_KEY
+id_rsa
+id_ed25519
+*.pem
+
+# Google Cloud service account keys
+qualtricsinteraction-*.json
+*.json
+
+# Python virtual environment
+venv/
+*.env
