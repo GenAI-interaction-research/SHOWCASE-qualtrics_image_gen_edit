@@ -65,7 +65,6 @@ def create_app():
                 "https://survey.eu.qualtrics.com",
                 "https://*.qualtrics.com",
                 "https://eu.qualtrics.com",
-                "https://emlyonbs.qualtrics.com",
                 "http://localhost:5000"
             ],
             "methods": ["GET", "POST", "OPTIONS"],
